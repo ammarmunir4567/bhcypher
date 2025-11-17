@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+
+from app.services.s3_service import download_json, upload_report
+from app.services.report_service import generate_report_from_scan
+from app.services.vuln_embedding_service import embed_and_store_vulnerabilities, extract_severity_from_ai_report
+from app.services.kb_service import store_ai_report_in_kb
+from app.utils.json_validator import validate_scan_json
+from app.api.dependencies import get_db
+from app.services.persistence_service import find_or_create_host, create_scan_file, create_report
+
+
+router = APIRouter(prefix="/ingest", tags=["ingestion"])
+
+
+@router.post("/s3-callback")
+def s3_callback(s3_path: str, db: Session = Depends(get_db)):
+    """
+    Main ingestion endpoint triggered when a new scan file arrives in S3.
+    """
+    try:
+        # Download scan file from S3
+        scan = download_json(s3_path)
+        
+        # Validate JSON schema
+        is_valid, error_msg = validate_scan_json(scan)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=f"Schema validation failed: {error_msg}")
+        
+        # Persist Host and Scan file
+        sys = scan.get("systemStats", {}).get("system", {})
+        host = find_or_create_host(db, sys.get("hostname"), sys.get("os_name"), sys.get("os_version"))
+        scan_row = create_scan_file(db, s3_path=s3_path, raw_json=scan, host_id=host.id)
+
+        # Generate report 
+        html_str, pdf_bytes, summary, report_data = generate_report_from_scan(scan)
+        
+        # Extract severity mapping from AI report 
+        cve_severity_map = extract_severity_from_ai_report(report_data)
+        
+        # Embed and store vulnerabilities 
+        stored_vector_ids = embed_and_store_vulnerabilities(
+            scan_json=scan,
+            s3_bucket_url=s3_path,
+            scan_file_id=scan_row.id,
+            cve_severity_map=cve_severity_map
+        )
+        
+        # Upload reports to S3 
+        html_s3, pdf_s3 = upload_report(
+            html_str.encode("utf-8"),
+            pdf_bytes,
+            hostname=host.hostname or "unknown-host",
+            encrypt=False,
+            public=True,
+        )
+        
+        # Store AI-generated summaries and recommendations 
+        stored_kb_ids = store_ai_report_in_kb(
+            ai_report=report_data,
+            scan_file_id=scan_row.id,
+            scan_s3_path=s3_path,
+            report_html_s3=html_s3,
+            report_pdf_s3=pdf_s3
+        )
+
+        # Save report record
+        create_report(
+            db,
+            host_id=host.id,
+            scan_file_id=scan_row.id,
+            html_inline=html_str,
+            s3_html=html_s3,
+            s3_pdf=pdf_s3,
+            summary=summary,
+            risk_score=summary.get("risk_score"),
+        )
+        
+        db.commit()
+        
+        return {
+            "html_s3": html_s3,
+            "pdf_s3": pdf_s3,
+            "summary": summary,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        import traceback
+        error_detail = f"Report generation failed: {str(e)}"
+        print(f"ERROR in ingestion: {error_detail}")
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(status_code=500, detail=error_detail)
+
+

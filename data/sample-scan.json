@@ -1,0 +1,107 @@
+{
+  "systemStats": {
+    "system": {
+      "hostname": "web-server-01",
+      "os_name": "Ubuntu",
+      "os_version": "22.04 LTS"
+    },
+    "cpu": {
+      "cores": 4,
+      "usage": 45.2
+    },
+    "memory": {
+      "total_gb": 16,
+      "used_gb": 8.5
+    }
+  },
+  "vulnerabilities": {
+    "vulnerabilities": [
+      {
+        "cve": {
+          "id": "CVE-2024-1234",
+          "published": "2024-01-15T10:00:00Z",
+          "lastModified": "2024-01-20T15:30:00Z",
+          "descriptions": [
+            {
+              "lang": "en",
+              "value": "A critical buffer overflow vulnerability in OpenSSL allows remote code execution"
+            }
+          ]
+        },
+        "severity": "CRITICAL",
+        "cvss_score": 9.8,
+        "affected_package": "openssl",
+        "affected_version": "1.1.1k",
+        "fixed_version": "1.1.1w"
+      },
+      {
+        "cve": {
+          "id": "CVE-2024-5678",
+          "published": "2024-02-10T08:00:00Z",
+          "lastModified": "2024-02-15T12:00:00Z",
+          "descriptions": [
+            {
+              "lang": "en",
+              "value": "SQL injection vulnerability in PostgreSQL client library"
+            }
+          ]
+        },
+        "severity": "HIGH",
+        "cvss_score": 7.5,
+        "affected_package": "libpq5",
+        "affected_version": "12.3",
+        "fixed_version": "12.18"
+      },
+      {
+        "cve": {
+          "id": "CVE-2024-9012",
+          "published": "2024-03-05T14:00:00Z",
+          "lastModified": "2024-03-08T09:00:00Z",
+          "descriptions": [
+            {
+              "lang": "en",
+              "value": "Cross-site scripting (XSS) vulnerability in nginx module"
+            }
+          ]
+        },
+        "severity": "MEDIUM",
+        "cvss_score": 5.4,
+        "affected_package": "nginx",
+        "affected_version": "1.18.0",
+        "fixed_version": "1.24.0"
+      },
+      {
+        "cve": {
+          "id": "CVE-2024-3456",
+          "published": "2024-04-01T11:00:00Z",
+          "lastModified": "2024-04-03T16:00:00Z",
+          "descriptions": [
+            {
+              "lang": "en",
+              "value": "Information disclosure vulnerability in systemd service"
+            }
+          ]
+        },
+        "severity": "LOW",
+        "cvss_score": 3.3,
+        "affected_package": "systemd",
+        "affected_version": "245.4",
+        "fixed_version": "249.11"
+      }
+    ],
+    "summary": {
+      "total_vulnerabilities": 4,
+      "critical_count": 1,
+      "high_count": 1,
+      "medium_count": 1,
+      "low_count": 1,
+      "risk_score": 72.5
+    }
+  },
+  "scan_metadata": {
+    "scan_date": "2024-11-10T18:00:00Z",
+    "scanner_version": "1.0.0",
+    "scan_duration_seconds": 45
+  }
+}
+

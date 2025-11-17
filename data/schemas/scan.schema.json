@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Security Scan JSON Schema",
+  "description": "Schema for validating security scan JSON files",
+  "type": "object",
+  "required": ["vulnerabilities", "systemStats"],
+  "properties": {
+    "vulnerabilities": {
+      "type": "object",
+      "required": ["vulnerabilities", "summary"],
+      "properties": {
+        "vulnerabilities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "cve": {
+                "type": "object",
+                "properties": {
+                  "id": {"type": ["string", "null"]},
+                  "published": {"type": ["string", "null"]},
+                  "lastModified": {"type": ["string", "null"]},
+                  "descriptions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "lang": {"type": "string"},
+                        "value": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "properties": {
+            "total_vulnerabilities": {"type": "number"},
+            "critical_count": {"type": "number"},
+            "high_count": {"type": "number"},
+            "medium_count": {"type": "number"},
+            "low_count": {"type": "number"},
+            "risk_score": {"type": "number"}
+          }
+        }
+      }
+    },
+    "systemStats": {
+      "type": "object",
+      "required": ["system"],
+      "properties": {
+        "system": {
+          "type": "object",
+          "properties": {
+            "hostname": {"type": ["string", "null"]},
+            "os_name": {"type": ["string", "null"]},
+            "os_version": {"type": ["string", "null"]}
+          }
+        }
+      }
+    }
+  }
+}
+
