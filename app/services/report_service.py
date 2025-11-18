@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path    
 
+import markdown2  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from weasyprint import HTML
 
@@ -17,10 +18,32 @@ REPORT_TEMPLATE = "pentest_report.html"  # New professional template
 
 
 def _get_env() -> Environment:
-    return Environment(
+    env = Environment(
         loader=FileSystemLoader(str(TEMPLATE_DIR)),
         autoescape=select_autoescape(["html", "xml"]),
     )
+    env.filters["markdown"] = _markdown_filter
+    env.filters["markdown_inline"] = _markdown_inline
+    return env
+
+
+def _markdown_filter(value: str | None) -> str:
+    if not value:
+        return ""
+    return markdown2.markdown(
+        value,
+        extras=["fenced-code-blocks", "tables", "strike", "break-on-newline"],
+    )
+
+
+def _markdown_inline(value: str | None) -> str:
+    html = _markdown_filter(value)
+    if not html:
+        return ""
+    normalized = html.strip()
+    if normalized.startswith("<p>") and normalized.endswith("</p>"):
+        normalized = normalized[3:-4].strip()
+    return normalized
 
 
 def parse_scan(scan: dict) -> dict:
