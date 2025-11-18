@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 
 from app.services.vector_store_service import get_vector_store_service
 from app.core.config import settings
@@ -56,7 +57,7 @@ def chunk_text_with_overlap(
 
 
 def build_kb_entry(
-    text: str,
+    text: Union[str, list, dict],
     topic: str,
     category: str,
     source: str = "AI Response",
@@ -69,8 +70,20 @@ def build_kb_entry(
     """
     Build KB entry structure(s) for storing in kb_namespace.
     If text exceeds chunk_size, returns multiple entries (chunks) with overlap.
+    Accepts text as string, list, or dict - non-strings will be converted to JSON.
     
     """
+    # Handle various input types (str, list, dict)
+    if isinstance(text, list):
+        # If it's a list, convert to JSON string for storage
+        text = json.dumps(text, indent=2)
+    elif isinstance(text, dict):
+        # If it's a dict, convert to JSON string for storage
+        text = json.dumps(text, indent=2)
+    elif not isinstance(text, str):
+        # Convert any other type to string
+        text = str(text)
+    
     text = text.strip()
     if not text:
         return []

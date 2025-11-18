@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     
+    # Agent Configuration
+    use_agent: bool = os.getenv("USE_AGENT", "true").lower() in ("true", "1", "yes")
+    agent_max_iterations: int = int(os.getenv("AGENT_MAX_ITERATIONS", "15"))
+    agent_verbose: bool = os.getenv("AGENT_VERBOSE", "true").lower() in ("true", "1", "yes")
+    
     # RAG Configuration
     vulns_namespace: str = os.getenv("VULNS_NAMESPACE", "vulns_namespace")
     kb_namespace: str = os.getenv("KB_NAMESPACE", "kb_namespace")

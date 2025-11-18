@@ -7,6 +7,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from weasyprint import HTML
 
 from .ai_service import generate_full_report_with_gemini
+from app.core.config import settings
 
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -81,14 +82,14 @@ def generate_report_from_scan(scan_json: dict) -> tuple[str, bytes, dict, dict]:
     """
     Main workflow:
     1. Parse scan JSON → extract vulnerabilities and host info
-    2. Send ALL parsed data to Gemini → generate complete report
-    3. Render Gemini output → HTML/PDF
+    2. Send ALL parsed data to AI (Agent or direct Gemini) → generate complete report
+    3. Render AI output → HTML/PDF
     """
     # Parse scan data
     parsed_scan = parse_scan(scan_json)
     
-    # Send parsed data to Gemini and generate full report
-    report_data = generate_full_report_with_gemini(parsed_scan)
+    # Send parsed data to AI and generate full report (uses agent by default if configured)
+    report_data = generate_full_report_with_gemini(parsed_scan, use_agent=settings.use_agent)
     
     # Render report into HTML/PDF
     html_str, pdf_bytes = render_report(report_data)

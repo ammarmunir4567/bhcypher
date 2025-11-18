@@ -2,13 +2,22 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from functools import lru_cache
 import logging
 logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 import google.generativeai as genai
+
+# Import agent-based report generation
+try:
+    from app.services.agent_service import generate_report_with_agent
+    AGENT_AVAILABLE = True
+    logger.info("LangChain agent service available")
+except ImportError as e:
+    AGENT_AVAILABLE = False
+    logger.warning(f"LangChain agent not available: {e}")
 
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -92,16 +101,29 @@ def _handle_gemini_error(error: Exception) -> None:
         logger.exception("Unhandled Gemini error")
 
 
-def generate_full_report_with_gemini(parsed_scan: Dict) -> Dict:
+def generate_full_report_with_gemini(parsed_scan: Dict, use_agent: bool = True) -> Dict:
     """
-    Generate comprehensive security report using Gemini AI.
+    Generate comprehensive security report using Gemini AI (with or without agent).
     
     Args:
         parsed_scan: Parsed scan data dictionary with host info and findings
+        use_agent: If True, uses LangChain agent with tools (default). If False, uses direct Gemini API.
         
     Returns:
         Dictionary containing generated report with executive_summary, findings, etc.
     """
+    # Try agent-based approach first if available and requested
+    if use_agent and AGENT_AVAILABLE:
+        try:
+            logger.info("🤖 Using LangChain Agent for report generation...")
+            report_data = generate_report_with_agent(parsed_scan)
+            logger.info("✅ Agent-based report generation successful")
+            return report_data
+        except Exception as e:
+            logger.error(f"❌ Agent-based generation failed: {e}")
+            logger.info("⚠️  Falling back to direct Gemini API call...")
+    
+    # Fallback to direct Gemini API call
     try:
         model_name = settings.gemini_model
         if not model_name:
@@ -125,6 +147,9 @@ def generate_full_report_with_gemini(parsed_scan: Dict) -> Dict:
         
         if report_data:
             logger.info("SUCCESS: Parsed JSON from Gemini response")
+            # Add severity breakdown if not present
+            if "severity_breakdown" not in report_data:
+                report_data["severity_breakdown"] = _calculate_severity_breakdown_ai(report_data.get("findings", []))
             return report_data
         else:
             # Fallback: parse text response into structured format
@@ -145,8 +170,29 @@ def _parse_text_response(text: str, parsed_scan: Dict) -> Dict:
         "findings": [],
         "recommendations": "Review the generated content and apply patches.",
         "risk_score": 7.0,
-        "risk_level": "High"
+        "risk_level": "High",
+        "severity_breakdown": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
     }
+
+
+def _calculate_severity_breakdown_ai(findings: List[Dict]) -> Dict:
+    """Calculate severity breakdown from findings list."""
+    breakdown = {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+    }
+    
+    for finding in findings:
+        severity = finding.get("severity", "").lower()
+        if severity in breakdown:
+            breakdown[severity] += 1
+        elif severity == "informational":
+            breakdown["info"] += 1
+    
+    return breakdown
 
 
 def _generate_stub_report(parsed_scan: Dict) -> Dict:
@@ -207,5 +253,6 @@ def _generate_stub_report(parsed_scan: Dict) -> Dict:
             "and implement security best practices."
         ),
         "risk_score": risk_score,
-        "risk_level": risk_level
+        "risk_level": risk_level,
+        "severity_breakdown": _calculate_severity_breakdown_ai(stub_findings)
     }
