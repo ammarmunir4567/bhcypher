@@ -550,11 +550,11 @@ def _prepare_simplified_vulns(findings: List[Dict]) -> str:
 
 def generate_report_with_agent(parsed_scan: Dict) -> Dict:
     """
-    Generate security report using multi-agent orchestration system.
+    Generate security report using LangGraph multi-agent system.
     
-    This function now uses a hierarchical multi-agent architecture instead of
-    a single agent. The multi-agent system distributes work across specialized
-    agents for better performance, reliability, and parallel processing.
+    This function uses LangGraph orchestration with specialized agents that receive
+    only relevant data portions to prevent context overload. Agents work in parallel
+    where possible for improved performance.
     
     Args:
         parsed_scan: Parsed scan data with host info and vulnerabilities
@@ -563,25 +563,14 @@ def generate_report_with_agent(parsed_scan: Dict) -> Dict:
         Comprehensive security report dictionary
     """
     try:
-        # Check if multi-agent system should be used
-        use_multi_agent = settings.use_agent  # Reuse the existing agent flag
+        logger.info("🎯 Using LangGraph multi-agent system for report generation")
+        from app.services.multi_agent_service import SecurityReportOrchestrator
         
-        if use_multi_agent:
-            logger.info("🎯 Using multi-agent orchestration system")
-            from app.services.multi_agent_service import SecurityReportOrchestrator
-            
-            orchestrator = SecurityReportOrchestrator()
-            report_data = orchestrator.generate_report(parsed_scan)
-            
-            logger.info("✅ Multi-agent report generation successful")
-            return report_data
-        else:
-            # Fall back to single agent if multi-agent is disabled
-            logger.info("Using single agent system (legacy mode)")
-            return _generate_with_single_agent(parsed_scan)
+        orchestrator = SecurityReportOrchestrator()
+        return orchestrator.generate_report(parsed_scan)
     
     except Exception as e:
-        logger.error(f"Error in multi-agent report generation: {e}", exc_info=True)
+        logger.error(f"Error in LangGraph agent system: {e}", exc_info=True)
         logger.info("Falling back to single agent system")
         try:
             return _generate_with_single_agent(parsed_scan)
@@ -592,7 +581,10 @@ def generate_report_with_agent(parsed_scan: Dict) -> Dict:
 
 def _generate_with_single_agent(parsed_scan: Dict) -> Dict:
     """
-    Legacy single-agent report generation (kept as fallback).
+    Single-agent report generation using LangChain.
+    
+    Uses a LangChain agent with custom tools to analyze vulnerabilities
+    and generate comprehensive security assessment reports.
     
     Args:
         parsed_scan: Parsed scan data
@@ -601,7 +593,7 @@ def _generate_with_single_agent(parsed_scan: Dict) -> Dict:
         Report dictionary
     """
     try:
-        logger.info("Creating security analysis agent (single agent mode)...")
+        logger.info("🤖 Creating security analysis agent...")
         agent = create_security_agent()
         
         # Prepare input for agent
