@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import base64
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path    
+from typing import Dict
 
 import markdown2  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
 from weasyprint import HTML
 
 from .ai_service import generate_full_report_with_gemini
@@ -15,6 +20,21 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
 REPORT_TEMPLATE = "pentest_report.html"  # New professional template
 # REPORT_TEMPLATE = "report.html"  # Old simple template
+
+SEVERITY_SERIES = [
+    ("critical_count", "Critical", "#dc2626"),
+    ("high_count", "High", "#ea580c"),
+    ("medium_count", "Medium", "#ca8a04"),
+    ("low_count", "Low", "#3b82f6"),
+    ("info_count", "Info", "#6b7280"),
+]
+
+DEFAULT_SCOPE_LABELS = [
+    "External Network",
+    "Internal Network",
+    "Web Applications",
+    "Wireless Networks",
+]
 
 
 def _get_env() -> Environment:
@@ -91,8 +111,18 @@ def render_report(report_data: dict) -> tuple[str, bytes]:
     """Render Gemini-generated report into HTML and PDF (landscape orientation)."""
     env = _get_env()
     template = env.get_template(REPORT_TEMPLATE)
+
+    severity_counts = _extract_severity_counts(report_data)
+    charts = _generate_severity_charts(severity_counts)
+    scope_items = _build_scope_items(report_data.get("assessment_scope"))
+
     # Add timestamp for report generation
-    render_context = {**report_data, "now": datetime.now()}
+    render_context = {
+        **report_data,
+        **charts,
+        "assessment_scope_items": scope_items,
+        "now": datetime.now(),
+    }
     html_str = template.render(**render_context)
     
     # Generate PDF with landscape orientation
@@ -125,3 +155,94 @@ def generate_report_from_scan(scan_json: dict) -> tuple[str, bytes, dict, dict]:
     }
     
     return html_str, pdf_bytes, summary, report_data
+
+
+def _extract_severity_counts(report_data: dict) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for key, label, _ in SEVERITY_SERIES:
+        value = report_data.get(key, 0)
+        try:
+            counts[label] = int(value or 0)
+        except (TypeError, ValueError):
+            counts[label] = 0
+    return counts
+
+
+def _generate_severity_charts(counts: Dict[str, int]) -> Dict[str, str | None]:
+    total = sum(counts.values())
+    if total == 0:
+        return {"severity_bar_chart": None, "severity_pie_chart": None}
+
+    labels = [label for _, label, _ in SEVERITY_SERIES]
+    colors = [color for _, _, color in SEVERITY_SERIES]
+    values = [counts.get(label, 0) for label in labels]
+
+    bar_fig = Figure(figsize=(6, 3), dpi=120)
+    bar_ax = bar_fig.add_subplot(1, 1, 1)
+    bar_ax.bar(labels, values, color=colors, edgecolor="#1f2937")
+    bar_ax.set_ylabel("Findings")
+    bar_ax.set_title("Findings by Severity")
+    bar_ax.grid(axis="y", linestyle="--", alpha=0.3)
+    bar_ax.set_axisbelow(True)
+    bar_ax.tick_params(axis="x", rotation=10)
+    bar_uri = _figure_to_data_uri(bar_fig)
+
+    pie_fig = Figure(figsize=(6, 3.2), dpi=120)
+    pie_ax = pie_fig.add_subplot(1, 1, 1)
+    pie_ax.pie(
+        values,
+        labels=labels,
+        colors=colors,
+        autopct=lambda pct: f"{pct:.0f}%" if pct >= 1 else "",
+        startangle=135,
+        explode=[0.03 if v > 0 else 0 for v in values],
+        textprops={"color": "#0f172a", "fontsize": 9, "weight": "bold"},
+    )
+    pie_ax.set_title("Distribution of Findings")
+    pie_ax.axis("equal")
+    pie_uri = _figure_to_data_uri(pie_fig)
+
+    return {
+        "severity_bar_chart": bar_uri,
+        "severity_pie_chart": pie_uri,
+    }
+
+
+def _figure_to_data_uri(fig: Figure) -> str:
+    buffer = BytesIO()
+    FigureCanvas(fig).print_png(buffer)
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    fig.clear()
+    return f"data:image/png;base64,{encoded}"
+
+
+def _build_scope_items(scope_data) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    normalized_map: Dict[str, dict[str, str]] = {}
+
+    default_set = {_normalize_label(label) for label in DEFAULT_SCOPE_LABELS}
+
+    if isinstance(scope_data, list):
+        for entry in scope_data:
+            label = str(entry.get("label") or "").strip()
+            if not label:
+                continue
+            value = str(entry.get("value") or "N/A").strip() or "N/A"
+            normalized_map[_normalize_label(label)] = {"label": label, "value": value}
+
+    for default_label in DEFAULT_SCOPE_LABELS:
+        normalized = _normalize_label(default_label)
+        if normalized in normalized_map:
+            items.append(normalized_map[normalized])
+        else:
+            items.append({"label": default_label, "value": "N/A"})
+
+    for normalized, entry in normalized_map.items():
+        if normalized not in default_set:
+            items.append(entry)
+
+    return items
+
+
+def _normalize_label(label: str) -> str:
+    return label.replace(":", "").replace(" ", "").lower()
