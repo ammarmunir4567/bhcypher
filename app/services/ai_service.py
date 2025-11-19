@@ -10,14 +10,14 @@ logger = logging.getLogger(__name__)
 from app.core.config import settings
 import google.generativeai as genai
 
-# Import agent-based report generation
+# Import LangGraph multi-agent system
 try:
-    from app.services.agent_service import generate_report_with_agent
+    from app.services.multi_agent_service import SecurityReportOrchestrator
     AGENT_AVAILABLE = True
-    logger.info("LangChain agent service available")
+    logger.info("LangGraph multi-agent system available")
 except ImportError as e:
     AGENT_AVAILABLE = False
-    logger.warning(f"LangChain agent not available: {e}")
+    logger.warning(f"LangGraph multi-agent system not available: {e}")
 
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -103,61 +103,31 @@ def _handle_gemini_error(error: Exception) -> None:
 
 def generate_full_report_with_gemini(parsed_scan: Dict, use_agent: bool = True) -> Dict:
     """
-    Generate comprehensive security report using Gemini AI (with or without agent).
+    Generate comprehensive security report using Gemini AI.
     
     Args:
         parsed_scan: Parsed scan data dictionary with host info and findings
-        use_agent: If True, uses LangChain agent with tools (default). If False, uses direct Gemini API.
+        use_agent: If True, uses LangGraph multi-agent system (default). If False, uses direct Gemini API.
         
     Returns:
         Dictionary containing generated report with executive_summary, findings, etc.
     """
-    # Try agent-based approach first if available and requested
+    # Use LangGraph multi-agent system if available and requested
     if use_agent and AGENT_AVAILABLE:
         try:
-            logger.info("🤖 Using LangChain Agent for report generation...")
-            report_data = generate_report_with_agent(parsed_scan)
-            logger.info("✅ Agent-based report generation successful")
+            logger.info("🎯 Using LangGraph multi-agent system for report generation")
+            orchestrator = SecurityReportOrchestrator()
+            report_data = orchestrator.generate_report(parsed_scan)
+            logger.info("✅ Multi-agent report generation successful")
             return report_data
         except Exception as e:
-            logger.error(f"❌ Agent-based generation failed: {e}")
-            logger.info("⚠️  Falling back to direct Gemini API call...")
-    
-    # Fallback to direct Gemini API call
-    try:
-        model_name = settings.gemini_model
-        if not model_name:
-            raise RuntimeError("gemini_model not configured in settings")
-        model = genai.GenerativeModel(model_name)
-        
-        # Build and send prompt
-        prompt = _build_prompt(parsed_scan)
-        logger.info(f"Calling Gemini API ({model_name}) with {len(prompt)} chars...")
-        
-        resp = model.generate_content(prompt)
-        text = (resp.text or "").strip()
-        
-        logger.info(f"Gemini response length: {len(text)} chars")
-        
-        if not text:
+            logger.error(f"❌ Multi-agent generation failed: {e}", exc_info=True)
+            logger.info("⚠️  Falling back to stub report...")
             return _generate_stub_report(parsed_scan)
-        
-        # Extract JSON from response
-        report_data = _extract_json_from_response(text)
-        
-        if report_data:
-            logger.info("SUCCESS: Parsed JSON from Gemini response")
-            # Add severity breakdown if not present
-            if "severity_breakdown" not in report_data:
-                report_data["severity_breakdown"] = _calculate_severity_breakdown_ai(report_data.get("findings", []))
-            return report_data
-        else:
-            # Fallback: parse text response into structured format
-            return _parse_text_response(text, parsed_scan)
-            
-    except Exception as e:
-        _handle_gemini_error(e)
-        return _generate_stub_report(parsed_scan)
+    
+    # If agent not available or not requested, use stub report
+    logger.warning("Multi-agent system not available, using stub report")
+    return _generate_stub_report(parsed_scan)
 
 
 def _parse_text_response(text: str, parsed_scan: Dict) -> Dict:

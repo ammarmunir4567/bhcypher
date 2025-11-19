@@ -67,14 +67,18 @@ def _markdown_inline(value: str | None) -> str:
 
 
 def parse_scan(scan: dict) -> dict:
-    """Parse JSON scan file and extract all relevant data for report generation."""
+    """Parse comprehensive JSON scan file and extract all relevant data for report generation."""
+    
+    # Extract system stats
     sys = scan.get("systemStats", {}).get("system", {})
-    hostname = sys.get("hostname")
+    hostname = sys.get("hostname", "Unknown")
     os_name = sys.get("os_name")
     os_version = sys.get("os_version")
     
+    # Extract vulnerabilities
     vulns = scan.get("vulnerabilities", {}).get("vulnerabilities", [])
     summary = scan.get("vulnerabilities", {}).get("summary", {})
+    scan_timestamp = scan.get("vulnerabilities", {}).get("scan_timestamp")
     
     parsed_findings = []
     for v in vulns:
@@ -88,6 +92,19 @@ def parse_scan(scan: dict) -> dict:
             "published": cve.get("published"),
             "last_modified": cve.get("lastModified"),
         })
+    
+    # Extract credential data
+    browsers = scan.get("browsers", [])
+    os_creds = scan.get("os", [])
+    apps = scan.get("apps", [])
+    stats_data = scan.get("statsData", {})
+    
+    # Extract system data
+    system_data = scan.get("systemData", {})
+    open_ports = system_data.get("open_ports", [])
+    installed_software = system_data.get("installed_software", [])
+    user_accounts = system_data.get("user_accounts", [])
+    hardware_info = system_data.get("hardware_info", {})
     
     return {
         "host": {
@@ -103,6 +120,23 @@ def parse_scan(scan: dict) -> dict:
             "medium_count": summary.get("medium_count", 0),
             "low_count": summary.get("low_count", 0),
             "risk_score": summary.get("risk_score", 0.0),
+        },
+        # Additional pentest data
+        "credentials": {
+            "browsers": browsers,
+            "os": os_creds,
+            "apps": apps,
+            "stats": stats_data
+        },
+        "system_data": {
+            "open_ports": open_ports,
+            "installed_software": installed_software,
+            "user_accounts": user_accounts,
+            "hardware_info": hardware_info
+        },
+        "scan_metadata": {
+            "scan_timestamp": scan_timestamp,
+            "collected_at": system_data.get("collected_at")
         }
     }
 
@@ -114,7 +148,11 @@ def render_report(report_data: dict) -> tuple[str, bytes]:
 
     severity_counts = _extract_severity_counts(report_data)
     charts = _generate_severity_charts(severity_counts)
-    scope_items = _build_scope_items(report_data.get("assessment_scope"))
+    
+    # Use assessment_scope directly if it's already a list, otherwise build from legacy format
+    scope_items = report_data.get("assessment_scope")
+    if not isinstance(scope_items, list):
+        scope_items = _build_scope_items(scope_items)
 
     # Add timestamp for report generation
     render_context = {

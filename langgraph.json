@@ -1,0 +1,74 @@
+{
+  "dependencies": [
+    "./app/services",
+    "./app/core",
+    "./app/prompts"
+  ],
+  "graphs": {
+    "security_report_workflow": {
+      "path": "app.services.multi_agent_service:create_security_workflow",
+      "config_schema": {
+        "type": "object",
+        "properties": {
+          "parsed_scan": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "object",
+                "properties": {
+                  "hostname": {"type": "string"},
+                  "os": {"type": "string"},
+                  "os_version": {"type": "string"}
+                }
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "cve_id": {"type": "string"},
+                    "description": {"type": "string"},
+                    "published": {"type": "string"},
+                    "last_modified": {"type": "string"}
+                  }
+                }
+              },
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "total_vulnerabilities": {"type": "integer"},
+                  "critical_count": {"type": "integer"},
+                  "high_count": {"type": "integer"},
+                  "medium_count": {"type": "integer"},
+                  "low_count": {"type": "integer"},
+                  "risk_score": {"type": "number"}
+                }
+              },
+              "credentials": {
+                "type": "object",
+                "properties": {
+                  "browsers": {"type": "array"},
+                  "os": {"type": "array"},
+                  "apps": {"type": "array"}
+                }
+              },
+              "system_data": {
+                "type": "object",
+                "properties": {
+                  "open_ports": {"type": "array"},
+                  "installed_software": {"type": "array"},
+                  "user_accounts": {"type": "array"}
+                }
+              }
+            },
+            "required": ["host", "findings", "summary"]
+          }
+        },
+        "required": ["parsed_scan"]
+      }
+    }
+  },
+  "env": ".env",
+  "python_version": "3.11"
+}
+
