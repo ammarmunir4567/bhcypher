@@ -112,26 +112,24 @@ def msp_s3_callback(s3_path: str, db: Session = Depends(get_db)):
     
     Expected S3 file format:
     {
-        "endpoint_info": {
-            "hostname": "DESKTOP-5UU61JF",
-            "user": "AlphaSquad",
-            "os": "Windows 10",
-            "os_version": "10.0.19045"
-        },
-        "credentials": {
-            "browsers": [...],
-            "os": [...],
-            "apps": [...]
-        },
-        "software": [...],
-        "system": {
+        "browsers": [{"url": "...", "username": "...", "password": "...", "browser": "Chrome", ...}],
+        "os": [{"service": "WiFi Network", "account": "...", "password": "...", ...}],
+        "apps": [{"application": "Discord", "username": "...", "password": "...", ...}],
+        "statsData": {"browser_count": 3, "os_count": 2, "app_count": 2, ...},
+        "systemData": {
             "user_accounts": [...],
-            "open_ports": [...],
-            "services": [...]
+            "running_services": [...],
+            "installed_software": [...],
+            "open_ports": [...]
         },
-        "scan_metadata": {
-            "scan_timestamp": "2025-01-20T10:30:00Z"
-        }
+        "systemStats": {
+            "system": {
+                "hostname": "DESKTOP-5UU61JF",
+                "os_name": "Windows",
+                "os_version": "10 (19045) 19045"
+            }
+        },
+        "vulnerabilities": {...}
     }
     """
     try:
@@ -156,11 +154,11 @@ def msp_s3_callback(s3_path: str, db: Session = Depends(get_db)):
                 }
             )
         
-        # Extract endpoint information for database
-        endpoint_info = msp_scan.get("endpoint_info", {})
-        hostname = endpoint_info.get("hostname", "unknown-host")
-        os_name = endpoint_info.get("os", "Unknown")
-        os_version = endpoint_info.get("os_version", "Unknown")
+        # Extract endpoint information from systemStats.system (same structure as pentest scans)
+        sys = msp_scan.get("systemStats", {}).get("system", {})
+        hostname = sys.get("hostname", "unknown-host")
+        os_name = sys.get("os_name", "Unknown")
+        os_version = sys.get("os_version", "Unknown")
         
         # Persist Host and Scan file
         host = find_or_create_host(db, hostname, os_name, os_version)

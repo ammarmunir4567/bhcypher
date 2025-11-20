@@ -135,8 +135,13 @@ Thumbs.db
 
 # Project specific
 *.pdf
-*.html
 reports/
 temp/
 uploads/
+
+# Ignore generated HTML reports but not templates
+test_*.html
+*_report_ai.html
+/reports/*.html
+/temp/*.html
 
