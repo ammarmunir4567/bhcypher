@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.services.s3_service import download_json, upload_report
 from app.services.report_service import generate_report_from_scan
+from app.services.msp_report_service import generate_msp_report_from_scan
 from app.services.vuln_embedding_service import embed_and_store_vulnerabilities, extract_severity_from_ai_report
 from app.services.kb_service import store_ai_report_in_kb
 from app.utils.json_validator import validate_scan_json
@@ -92,6 +93,122 @@ def s3_callback(s3_path: str, db: Session = Depends(get_db)):
         import traceback
         error_detail = f"Report generation failed: {str(e)}"
         print(f"ERROR in ingestion: {error_detail}")
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(status_code=500, detail=error_detail)
+
+
+@router.post("/msp-s3-callback")
+def msp_s3_callback(s3_path: str, db: Session = Depends(get_db)):
+    """
+    MSP report ingestion endpoint triggered when a new MSP scan file arrives in S3.
+    
+    This endpoint:
+    1. Downloads MSP scan file from S3
+    2. Validates the JSON structure
+    3. Generates MSP Cyber Hygiene & Credential Exposure report using LangGraph agents
+    4. Uploads HTML/PDF reports to S3
+    5. Stores report metadata in database
+    
+    Expected S3 file format:
+    {
+        "endpoint_info": {
+            "hostname": "DESKTOP-5UU61JF",
+            "user": "AlphaSquad",
+            "os": "Windows 10",
+            "os_version": "10.0.19045"
+        },
+        "credentials": {
+            "browsers": [...],
+            "os": [...],
+            "apps": [...]
+        },
+        "software": [...],
+        "system": {
+            "user_accounts": [...],
+            "open_ports": [...],
+            "services": [...]
+        },
+        "scan_metadata": {
+            "scan_timestamp": "2025-01-20T10:30:00Z"
+        }
+    }
+    """
+    try:
+        # Download MSP scan file from S3
+        msp_scan = download_json(s3_path)
+        
+        # Basic validation - check for required keys from credential scanner
+        required_keys = ["browsers", "os", "apps", "systemData", "systemStats"]
+        missing_keys = [key for key in required_keys if key not in msp_scan]
+        
+        if missing_keys:
+            # Invalid format detected
+            current_keys = list(msp_scan.keys())
+            raise HTTPException(
+                status_code=400, 
+                detail={
+                    "error": "MSP scan validation failed",
+                    "missing_keys": missing_keys,
+                    "found_keys": current_keys,
+                    "expected_format": "Credential scanner output with: browsers, os, apps, systemData, systemStats",
+                    "hint": "This appears to be a different scan format. Use /ingest/s3-callback for vulnerability scans."
+                }
+            )
+        
+        # Extract endpoint information for database
+        endpoint_info = msp_scan.get("endpoint_info", {})
+        hostname = endpoint_info.get("hostname", "unknown-host")
+        os_name = endpoint_info.get("os", "Unknown")
+        os_version = endpoint_info.get("os_version", "Unknown")
+        
+        # Persist Host and Scan file
+        host = find_or_create_host(db, hostname, os_name, os_version)
+        scan_row = create_scan_file(db, s3_path=s3_path, raw_json=msp_scan, host_id=host.id)
+        
+        # Generate MSP report using LangGraph multi-agent system
+        html_str, pdf_bytes, summary, report_data = generate_msp_report_from_scan(msp_scan)
+        
+        # Upload reports to S3
+        html_s3, pdf_s3 = upload_report(
+            html_str.encode("utf-8"),
+            pdf_bytes,
+            hostname=hostname,
+            encrypt=False,
+            public=True,
+        )
+        
+        # Save report record with MSP report type
+        from app.models import ReportType
+        create_report(
+            db,
+            host_id=host.id,
+            scan_file_id=scan_row.id,
+            html_inline=html_str,
+            s3_html=html_s3,
+            s3_pdf=pdf_s3,
+            summary=summary,
+            risk_score=summary.get("risk_score"),
+            report_type=ReportType.MSP,
+        )
+        
+        db.commit()
+        
+        return {
+            "status": "success",
+            "endpoint": hostname,
+            "html_s3": html_s3,
+            "pdf_s3": pdf_s3,
+            "summary": summary,
+        }
+        
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        import traceback
+        error_detail = f"MSP report generation failed: {str(e)}"
+        print(f"ERROR in MSP ingestion: {error_detail}")
         traceback.print_exc()
         db.rollback()
         raise HTTPException(status_code=500, detail=error_detail)
