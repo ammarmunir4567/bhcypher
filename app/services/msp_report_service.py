@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Dict, Tuple
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from weasyprint import HTML
 
 from app.core.config import settings
+from .pdf_generator import html_to_pdf
 from app.services.msp_multi_agent_service import MSPReportOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -281,9 +281,9 @@ def render_msp_report(report_data: dict) -> Tuple[str, bytes]:
     # Render HTML
     html_str = template.render(**render_context)
     
-    # Generate PDF
+    # Generate PDF using wkhtmltoimage (HTML -> PNG -> PDF)
     logger.info("Generating MSP PDF report...")
-    pdf_bytes = HTML(string=html_str).write_pdf()
+    pdf_bytes = html_to_pdf(html_str, method="auto")
     logger.info("✅ MSP PDF generated successfully")
     
     return html_str, pdf_bytes

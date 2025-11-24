@@ -10,9 +10,8 @@ import markdown2  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
-from weasyprint import HTML
-
 from .ai_service import generate_full_report_with_gemini
+from .pdf_generator import html_to_pdf
 from app.core.config import settings
 
 # Import Pentest LangGraph multi-agent system
@@ -186,9 +185,9 @@ def render_report(report_data: dict, template_name: str = None) -> tuple[str, by
     
     html_str = template.render(**render_context)
     
-    # Generate PDF with landscape orientation
-    # The CSS @page rule in the template already sets landscape mode
-    pdf_bytes = HTML(string=html_str).write_pdf()
+    # Generate PDF using wkhtmltoimage (HTML -> PNG -> PDF)
+    # This provides maximum stability for complex HTML layouts
+    pdf_bytes = html_to_pdf(html_str, method="auto")
     return html_str, pdf_bytes
 
 
