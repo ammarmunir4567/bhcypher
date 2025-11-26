@@ -16,6 +16,7 @@ class ReportType(str, Enum):
     SMB = "SMB"
     MSP = "MSP"
     ENTERPRISE = "ENTERPRISE"
+    QUALITATIVE = "QUALITATIVE"
 
 
 class Reports(Base):

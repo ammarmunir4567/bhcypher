@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.services.s3_service import download_json, upload_report
 from app.services.report_service import generate_report_from_scan
 from app.services.msp_report_service import generate_msp_report_from_scan
+from app.services.qualitative_report_service import generate_qualitative_report_from_scan
 from app.services.vuln_embedding_service import embed_and_store_vulnerabilities, extract_severity_from_ai_report
 from app.services.kb_service import store_ai_report_in_kb
 from app.utils.json_validator import validate_scan_json
@@ -224,6 +225,116 @@ def pentest_s3_callback(s3_path: str, db: Session = Depends(get_db)):
         import traceback
         error_detail = f"Pentest report generation failed: {str(e)}"
         print(f"ERROR in pentest ingestion: {error_detail}")
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(status_code=500, detail=error_detail)
+
+
+@router.post("/qualitative-s3-callback")
+def qualitative_s3_callback(s3_path: str, db: Session = Depends(get_db)):
+    """
+    Qualitative Security Report ingestion endpoint using LangGraph multi-agent system.
+    
+    This endpoint:
+    1. Downloads security scan file from S3
+    2. Validates the JSON structure
+    3. Generates comprehensive qualitative security report using LangGraph agents
+    4. Uploads HTML/PDF reports to S3
+    5. Stores report metadata in database
+    
+    Expected S3 file format:
+    {
+        "systemStats": {
+            "system": {
+                "hostname": "...",
+                "os_name": "...",
+                "os_version": "..."
+            }
+        },
+        "systemData": {
+            "user_accounts": [...],
+            "running_services": [...],
+            "installed_software": [...],
+            "open_ports": [...]
+        },
+        "vulnerabilities": {
+            "CVE-XXXX-XXXX": {
+                "description": "...",
+                "severity": "...",
+                "cvss_score": ...
+            }
+        },
+        "browsers": [...],  # Optional
+        "os": [...],        # Optional
+        "apps": [...]       # Optional
+    }
+    """
+    try:
+        # Download scan file from S3
+        scan = download_json(s3_path)
+        
+        # Extract endpoint information from systemStats.system
+        sys = scan.get("systemStats", {}).get("system", {})
+        hostname = sys.get("hostname", "unknown-host")
+        os_name = sys.get("os_name", "Unknown")
+        os_version = sys.get("os_version", "Unknown")
+        
+        # Persist Host and Scan file
+        host = find_or_create_host(db, hostname, os_name, os_version)
+        scan_row = create_scan_file(db, s3_path=s3_path, raw_json=scan, host_id=host.id)
+        
+        # Generate qualitative report using LangGraph multi-agent system
+        html_str, pdf_bytes, summary, report_data = generate_qualitative_report_from_scan(scan)
+        
+        # Upload reports to S3
+        html_s3, pdf_s3 = upload_report(
+            html_str.encode("utf-8"),
+            pdf_bytes,
+            hostname=hostname,
+            encrypt=False,
+            public=True,
+        )
+        
+        # Save report record with QUALITATIVE report type
+        from app.models import ReportType
+        create_report(
+            db,
+            host_id=host.id,
+            scan_file_id=scan_row.id,
+            html_inline=html_str,
+            s3_html=html_s3,
+            s3_pdf=pdf_s3,
+            summary=summary,
+            risk_score=summary.get("risk_score"),
+            report_type=ReportType.QUALITATIVE,
+        )
+        
+        db.commit()
+        
+        return {
+            "status": "success",
+            "endpoint": hostname,
+            "report_type": "qualitative",
+            "html_s3": html_s3,
+            "pdf_s3": pdf_s3,
+            "summary": summary,
+            "ai_analysis": {
+                "risk_score": summary.get("risk_score"),
+                "risk_level": summary.get("risk_level"),
+                "critical_count": summary.get("critical_count"),
+                "high_count": summary.get("high_count"),
+                "medium_count": summary.get("medium_count"),
+                "low_count": summary.get("low_count"),
+            }
+        }
+        
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        import traceback
+        error_detail = f"Qualitative report generation failed: {str(e)}"
+        print(f"ERROR in qualitative ingestion: {error_detail}")
         traceback.print_exc()
         db.rollback()
         raise HTTPException(status_code=500, detail=error_detail)
