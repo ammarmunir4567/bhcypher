@@ -12,7 +12,7 @@ import google.generativeai as genai
 
 # Import LangGraph multi-agent system
 try:
-    from app.services.multi_agent_service import SecurityReportOrchestrator
+    from app.services.pentest_multi_agent_service import PentestReportOrchestrator
     AGENT_AVAILABLE = True
     logger.info("LangGraph multi-agent system available")
 except ImportError as e:
@@ -116,7 +116,7 @@ def generate_full_report_with_gemini(parsed_scan: Dict, use_agent: bool = True) 
     if use_agent and AGENT_AVAILABLE:
         try:
             logger.info("🎯 Using LangGraph multi-agent system for report generation")
-            orchestrator = SecurityReportOrchestrator()
+            orchestrator = PentestReportOrchestrator()
             report_data = orchestrator.generate_report(parsed_scan)
             logger.info("✅ Multi-agent report generation successful")
             return report_data
