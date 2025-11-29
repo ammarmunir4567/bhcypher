@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>MSP Cyber-Hygiene Report — {{ endpoint }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- ==========  RE-IMAGINED STYLE  ========== -->
+    <style>
+        /* --------------  RESET  -------------- */
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+             background:#f5f7fa;color:#112244;line-height:1.45}
+
+        /* --------------  VARIABLES  -------------- */
+        :root{
+            --c1:#0b0f19;          /* charcoal */
+            --c2:#0066ff;          /* electric blue */
+            --c3:#ff4d4d;          /* alert red */
+            --c4:#00d2a0;          /* success */
+            --c5:#ffc700;          /* warning */
+            --grad:linear-gradient(135deg,var(--c2) 0%,#3a7bfd 100%);
+            --grad-dark:linear-gradient(135deg,var(--c1) 0%,#1b1f29 100%);
+            --shadow:0 15px 35px rgba(0,0,0,.18);
+            --radius:16px
+        }
+
+        /* --------------  PRINT  -------------- */
+        @media print{
+            @page{size:A4;margin:8mm}
+            body{background:#fff}
+            .no-print{display:none}
+            .page-break{page-break-before:always}
+            .risk-card,.chart,.fold{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+        }
+
+        /* --------------  LAYOUT  -------------- */
+        .book{
+            max-width:1240px;margin:auto;background:#fff;
+            box-shadow:var(--shadow);border-radius:var(--radius);overflow:hidden
+        }
+        section{padding:3rem 4rem}
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+        .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+        .flex-center{display:flex;align-items:center;justify-content:center}
+
+        /* --------------  TYPO  -------------- */
+        h1{font-size:clamp(2.2rem,5vw,3.5rem);font-weight:800}
+        h2{font-size:clamp(1.4rem,3vw,2rem);font-weight:700;margin:0 0 1.2rem}
+        h3{font-size:1.3rem;font-weight:600;margin:2rem 0 1rem;color:var(--c1)}
+        .overline{text-transform:uppercase;letter-spacing:.1em;font-size:.75rem;color:var(--c2)}
+        .text-muted{color:#8899aa;font-size:.9rem}
+
+        /* --------------  RISK BADGES  -------------- */
+        .risk-badge{display:inline-block;padding:.35rem 1rem;border-radius:99px;
+                   font-size:.72rem;font-weight:700;color:#fff}
+        .risk-critical{background:var(--c3)}
+        .risk-high{background:var(--c5)}
+        .risk-medium{background:#ff9f1c}
+        .risk-low{background:var(--c4)}
+
+        /* --------------  COVER  -------------- */
+        .cover{
+            background:var(--grad-dark);color:#fff;padding:5rem 4rem;
+            position:relative;overflow:hidden
+        }
+        .cover h1{letter-spacing:-.02em;margin-bottom:.6rem}
+        .cover .subtitle{font-size:1.1rem;opacity:.8}
+        .cover .meta{
+            display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+            gap:1.5rem;margin-top:3rem
+        }
+        .cover .meta>div{background:rgba(255,255,255,.08);padding:1rem;border-radius:8px}
+        .cover .meta .label{font-size:.7rem;opacity:.6;text-transform:uppercase}
+        .cover .meta .val{font-weight:600;font-size:1.1rem;margin-top:.3rem}
+
+        /* --------------  FOLD CARD  -------------- */
+        .fold{
+            background:var(--grad);color:#fff;border-radius:var(--radius);
+            padding:2.5rem;display:flex;align-items:center;justify-content:space-between;
+            box-shadow:var(--shadow)
+        }
+        .fold .score{font-size:4rem;font-weight:900}
+        .fold .label{opacity:.85}
+
+        /* --------------  SVG CHARTS  -------------- */
+        .chart{position:relative;width:100%;height:220px;margin:1.5rem 0}
+        .chart svg{width:100%;height:100%}
+        .chart .bar{transition:.3s}
+        .chart .bar:hover{opacity:.8}
+
+        /* --------------  TABLE  -------------- */
+        table{width:100%;border-collapse:collapse;font-size:.9rem;margin:1.5rem 0}
+        th{background:#f0f4fa;padding:.9rem;text-align:left;font-weight:600;color:var(--c1)}
+        td{padding:.8rem;border-bottom:1px solid #e6edf7}
+        tr:hover{background:#f8fafd}
+        .cred-detail{background:#f8fafd;font-size:.85rem;color:#667788;padding:.5rem .8rem}
+
+        /* --------------  CARD  -------------- */
+        .card{
+            background:#fff;border:1px solid #e6edf7;border-radius:var(--radius);
+            padding:1.8rem;margin-bottom:1.5rem;box-shadow:0 4px 12px rgba(0,0,0,.05)
+        }
+        .card.info{border-left:5px solid var(--c2)}
+        .card.warn{border-left:5px solid var(--c5)}
+        .card.alert{border-left:5px solid var(--c3)}
+        .card.success{border-left:5px solid var(--c4)}
+        .card .title{font-weight:700;margin-bottom:.5rem;font-size:1.1rem;color:var(--c1)}
+        .card .reason{font-size:.85rem;color:#445577;margin-bottom:.8rem;font-style:italic}
+        .card ol{margin-left:1.2rem;font-size:.85rem;color:#334466}
+        .card ol li{margin-bottom:.3rem}
+        .card ul{margin-left:1.2rem;font-size:.9rem;color:#334466}
+        .card ul li{margin-bottom:.4rem}
+
+        /* --------------  SOFTWARE LIST  -------------- */
+        .software-item{
+            background:#f8fafd;border-left:4px solid #cbd5e1;
+            padding:1.2rem;margin-bottom:.8rem;border-radius:8px
+        }
+        .software-item.high-risk{border-left-color:var(--c3);background:#fff5f5}
+        .software-item.medium-risk{border-left-color:var(--c5);background:#fffef5}
+        .software-name{font-weight:700;font-size:1rem;margin-bottom:.3rem}
+        .software-details{font-size:.85rem;color:#667788;margin-top:.2rem}
+
+        /* --------------  INSIGHT BOX  -------------- */
+        .insight-box{
+            background:#fef9e7;border-left:4px solid var(--c5);
+            padding:1.5rem;margin:1.5rem 0;border-radius:8px
+        }
+        .insight-box .title{font-weight:700;color:#92400e;margin-bottom:.7rem}
+        .insight-box ul{margin-left:1.2rem;color:#78350f}
+
+        .warning-box{
+            background:#fef2f2;border-left:4px solid var(--c3);
+            padding:1.5rem;margin:1.5rem 0;border-radius:8px
+        }
+        .warning-box .title{font-weight:700;color:#991b1b;margin-bottom:.7rem}
+
+        .success-box{
+            background:#f0fdf4;border-left:4px solid var(--c4);
+            padding:1.5rem;margin:1.5rem 0;border-radius:8px
+        }
+        .success-box .title{font-weight:700;color:#065f46;margin-bottom:.7rem}
+
+        /* --------------  FOOTER  -------------- */
+        footer{
+            text-align:center;font-size:.75rem;color:#8899aa;
+            padding:2rem 4rem;border-top:1px solid #e6edf7
+        }
+    </style>
+</head>
+
+<body>
+<div class="book">
+    <!-- =================  COVER  ================= -->
+    <header class="cover">
+        <h1>CYBER&nbsp;HYGIENE<br>REPORT</h1>
+        <p class="subtitle">Managed Service Provider ‑ Endpoint Assessment</p>
+
+        <div class="meta">
+            <div>
+                <div class="label">Endpoint</div>
+                <div class="val">{{ endpoint }}</div>
+            </div>
+            <div>
+                <div class="label">User</div>
+                <div class="val">{{ user }}</div>
+            </div>
+            <div>
+                <div class="label">Date</div>
+                <div class="val">{{ assessment_date }}</div>
+            </div>
+            <div>
+                <div class="label">Risk Level</div>
+                <div class="val">{{ executive_summary.overall_risk_level }}</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- =================  EXECUTIVE FOLD  ================= -->
+    <section>
+        <div class="fold">
+            <div>
+                <div class="label">Overall Risk Score</div>
+                <div class="score">{{ "%.1f"|format(executive_summary.risk_score) }}</div>
+            </div>
+            <div>
+                <div class="label">Credentials Found</div>
+                <div class="score">{{ executive_summary.credential_counts.total_credentials }}</div>
+            </div>
+        </div>
+
+        <div class="warning-box" style="margin-top:2rem">
+            <div class="title">⚠️ Risk Assessment</div>
+            <div>{{ executive_summary.risk_reason }}</div>
+        </div>
+    </section>
+
+    <!-- =================  CATEGORY SCORES  ================= -->
+    <section class="page-break">
+        <h2><span class="overline">Risk Breakdown</span><br>Category Scores</h2>
+        <div class="grid-2">
+            {% for cat,sc in risk_scoring_detailed.category_scores.items() %}
+            <div class="card flex-center info">
+                <div>
+                    <div style="font-size:2.2rem;font-weight:800;color:var(--c2)">{{ "%.1f"|format(sc) }}</div>
+                    <div class="text-muted">{{ cat|replace('_',' ')|title }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- =================  DONUT CHART  ================= -->
+    <section>
+        <h2><span class="overline">Credential Spread</span><br>Exposure Overview</h2>
+        <div class="chart">
+            <!-- minimalist donut -->
+            <svg viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="80" fill="none" stroke="#e6edf7" stroke-width="20"/>
+                <circle cx="100" cy="100" r="80" fill="none" stroke="url(#grad1)" stroke-width="20"
+                        stroke-dasharray="{{ (executive_summary.credential_counts.browser_credentials/executive_summary.credential_counts.total_credentials)*251.2 if executive_summary.credential_counts.total_credentials > 0 else 0 }} 251.2"
+                        stroke-dashoffset="62.8"/>
+                <defs>
+                    <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#0066ff"/>
+                        <stop offset="100%" stop-color="#3a7bfd"/>
+                    </linearGradient>
+                </defs>
+                <text x="100" y="100" text-anchor="middle" dy=".3em" font-size="26" font-weight="700">{{ executive_summary.credential_counts.total_credentials }}</text>
+                <text x="100" y="122" text-anchor="middle" font-size="11" fill="#8899aa">Total</text>
+            </svg>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Count</th>
+                    <th>Risk</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Browser</td>
+                    <td>{{ executive_summary.credential_counts.browser_credentials }}</td>
+                    <td><span class="risk-badge risk-high">High</span></td>
+                </tr>
+                <tr>
+                    <td>OS-Level</td>
+                    <td>{{ executive_summary.credential_counts.os_credentials }}</td>
+                    <td><span class="risk-badge risk-medium">Medium</span></td>
+                </tr>
+                <tr>
+                    <td>Applications</td>
+                    <td>{{ executive_summary.credential_counts.app_credentials }}</td>
+                    <td><span class="risk-badge risk-low">Low</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- =================  CREDENTIAL EXPOSURE  ================= -->
+    <section class="page-break">
+        <h2><span class="overline">Detailed Analysis</span><br>Credential Exposure</h2>
+
+        {% if credential_exposure.browser_exposure %}
+        <h3>Browser Credentials</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Browser</th>
+                    <th>URL</th>
+                    <th>Username</th>
+                    <th>Risk</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cred in credential_exposure.browser_exposure %}
+                <tr>
+                    <td>{{ cred.browser }}</td>
+                    <td>{{ cred.url }}</td>
+                    <td>{{ cred.username }}</td>
+                    <td><span class="risk-badge risk-{{ cred.risk_level|lower }}">{{ cred.risk_level }}</span></td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="cred-detail">
+                        <strong>Risk:</strong> {{ cred.risk_reason }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if credential_exposure.os_credentials %}
+        <h3>OS-Level Credentials</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Name/Network</th>
+                    <th>Account</th>
+                    <th>Risk</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cred in credential_exposure.os_credentials %}
+                <tr>
+                    <td>{{ cred.type }}</td>
+                    <td>{{ cred.name }}</td>
+                    <td>{{ cred.account|default('N/A') }}</td>
+                    <td><span class="risk-badge risk-{{ cred.risk_level|lower }}">{{ cred.risk_level }}</span></td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="cred-detail">
+                        <strong>Risk:</strong> {{ cred.risk_reason }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if credential_exposure.app_credentials %}
+        <h3>Application Credentials</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Application</th>
+                    <th>Username</th>
+                    <th>Risk</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cred in credential_exposure.app_credentials %}
+                <tr>
+                    <td>{{ cred.application }}</td>
+                    <td>{{ cred.username }}</td>
+                    <td><span class="risk-badge risk-{{ cred.risk_level|lower }}">{{ cred.risk_level }}</span></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="cred-detail">
+                        <strong>Risk:</strong> {{ cred.risk_reason }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if credential_exposure.key_insights %}
+        <div class="insight-box">
+            <div class="title">💡 MSP Insight</div>
+            <ul>
+                {% for insight in credential_exposure.key_insights %}<li>{{ insight }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- =================  SYSTEM USER & LOGIN  ================= -->
+    <section class="page-break">
+        <h2><span class="overline">System Security</span><br>User &amp; Login Snapshot</h2>
+        <div class="grid-2">
+            <div class="card">
+                <div class="title">Account</div>
+                <div style="font-size:1.5rem;font-weight:700">{{ system_security.user_analysis.username or 'N/A' }}</div>
+            </div>
+            <div class="card">
+                <div class="title">Admin Rights</div>
+                <div style="font-size:1.5rem">{% if system_security.user_analysis.has_admin %}✅ Yes{% else %}❌ No{% endif %}</div>
+            </div>
+            <div class="card">
+                <div class="title">Last Login</div>
+                <div>{{ system_security.user_analysis.last_login or 'N/A' }}</div>
+            </div>
+            <div class="card">
+                <div class="title">Security Assessment</div>
+                <div>{{ system_security.user_analysis.security_assessment or 'N/A' }}</div>
+            </div>
+        </div>
+
+        {% if system_security.key_insights %}
+        <div class="card info" style="margin-top:1.5rem">
+            <div class="title">💡 MSP Insight</div>
+            <ul>
+                {% for insight in system_security.key_insights %}<li>{{ insight }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- =================  SOFTWARE INVENTORY  ================= -->
+    <section>
+        <h2><span class="overline">Endpoint Inventory</span><br>Installed Software Analysis</h2>
+        <p class="text-muted">Total packages found: <strong>{{ software_inventory.total_software or 0 }}</strong></p>
+
+        {% if software_inventory.high_risk_software %}
+        <h3>High-Risk / Notable Software</h3>
+        {% for s in software_inventory.high_risk_software %}
+        <div class="software-item high-risk">
+            <div class="software-name">{{ s.name }} {% if s.version %}({{ s.version }}){% endif %}</div>
+            <div class="software-details">
+                <strong>Risk:</strong> {{ s.risk_level }} - {{ s.risk_reason }}
+            </div>
+            <div class="software-details">
+                <strong>Recommendation:</strong> {{ s.recommendation }}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if software_inventory.outdated_software %}
+        <h3>Potentially Outdated / Vulnerable</h3>
+        {% for s in software_inventory.outdated_software %}
+        <div class="software-item medium-risk">
+            <div class="software-name">{{ s.name }} {% if s.version %}({{ s.version }}){% endif %}</div>
+            <div class="software-details">
+                <strong>Issue:</strong> {{ s.issue }}
+            </div>
+            <div class="software-details">
+                <strong>Recommendation:</strong> {{ s.recommendation }}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if software_inventory.key_insights %}
+        <div class="card warn" style="margin-top:1.5rem">
+            <div class="title">💡 MSP Insight</div>
+            <ul>
+                {% for insight in software_inventory.key_insights %}<li>{{ insight }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- =================  FULL RISK SCORING NARRATIVE  ================= -->
+    <section class="page-break">
+        <h2><span class="overline">Scoring Details</span><br>How the Score Was Built</h2>
+
+        {% for category,explanation in risk_scoring_detailed.scoring_breakdown.items() %}
+        <div class="card">
+            <div class="title">{{ category|replace('_',' ')|title }}</div>
+            <p style="font-size:.9rem;color:#445577">{{ explanation }}</p>
+        </div>
+        {% endfor %}
+
+        {% if risk_scoring_detailed.risk_factors %}
+        <div class="warning-box" style="margin-top:1.5rem">
+            <div class="title">🚨 Major Risk Factors</div>
+            <ul>
+                {% for factor in risk_scoring_detailed.risk_factors %}<li>{{ factor }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- =================  REMEDIATION  ================= -->
+    <section class="page-break">
+        <h2><span class="overline">Action Plan</span><br>Remediation Road-map</h2>
+
+        {% for prio,actions in {"Critical":remediation_steps.immediate_actions,
+                                "Medium":remediation_steps.medium_priority,
+                                "Low":remediation_steps.low_priority}.items() if actions %}
+        <div class="card {% if prio=='Critical' %}alert{% elif prio=='Medium' %}warn{% else %}success{% endif %}">
+            <div class="title">{{ prio }} Priority</div>
+            {% for act in actions %}
+            <div class="reason">{{ act.reason }}</div>
+            <ol>
+                {% for st in act.steps %}
+                <li>{{ st }}</li>
+                {% endfor %}
+            </ol>
+            {% if not loop.last %}<hr style="margin:1rem 0;border:none;border-top:1px solid #e6edf7">{% endif %}
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </section>
+
+    <!-- =================  MSP NOTES  ================= -->
+    <section>
+        <h2><span class="overline">Internal Use</span><br>Notes for MSP</h2>
+        {% if remediation_steps.msp_recommendations %}
+        <div class="card success">
+            <div class="title">📋 Recommendations</div>
+            <ul>
+                {% for rec in remediation_steps.msp_recommendations %}<li>{{ rec }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        <p class="text-muted" style="margin-top:1.5rem">
+            This report can be used for:
+        </p>
+        <ul class="text-muted">
+            <li>Client onboarding and security baseline assessment</li>
+            <li>Demonstrating security gaps to executives</li>
+            <li>Justifying remediation services & security improvements</li>
+            <li>Scheduling patching cycles and password-rotation policies</li>
+            <li>Part of broader cyber-hygiene audit programs</li>
+        </ul>
+    </section>
+
+    <!-- =================  FOOTER  ================= -->
+    <footer>
+        Generated {{ now.strftime('%Y-%m-%d %H:%M') }} &nbsp;•&nbsp; Confidential – MSP internal use only
+    </footer>
+</div>
+</body>
+</html>

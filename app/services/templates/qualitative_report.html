@@ -39,12 +39,25 @@
             line-height: 1.6;
             background: white;
         }
+
+        .markdown-content p {
+            margin-bottom: 12px;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 12px 0 12px 24px;
+        }
+
+        .markdown-content li {
+            margin-bottom: 6px;
+        }
         
         .page {
             page-break-after: always;
-            min-height: 100vh;
+            page-break-inside: avoid;
             position: relative;
-            padding: 0;
+            padding: 25mm 22mm;
         }
         
         .page:last-child {
@@ -337,6 +350,12 @@
             border-radius: 12px;
             padding: 30px;
         }
+
+        .chart-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
         
         .chart-title {
             font-size: 18px;
@@ -617,10 +636,10 @@
         
         .progress-bar {
             width: 100%;
-            height: 32px;
+            height: 36px;
             background: #f3f4f6;
             border-radius: 6px;
-            overflow: hidden;
+            overflow: visible;
             position: relative;
         }
         
@@ -629,27 +648,54 @@
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            padding-right: 12px;
-            font-size: 13px;
+            padding-right: 14px;
+            font-size: 14px;
             font-weight: 700;
             color: white;
             transition: width 0.5s;
+            position: relative;
+            border-radius: 6px;
+            min-width: 60px;
         }
         
         .progress-fill.critical {
             background: var(--critical-red);
+            color: white;
         }
         
         .progress-fill.high {
             background: var(--high-orange);
+            color: white;
         }
         
         .progress-fill.medium {
             background: var(--medium-yellow);
+            color: white;
         }
         
         .progress-fill.low {
             background: var(--low-blue);
+            color: white;
+        }
+        
+        /* Ensure percentage text is visible in PDFs */
+        @media print {
+            .progress-fill {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .progress-fill span {
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+            
+            .progress-bar {
+                overflow: visible !important;
+            }
         }
         
         /* ========================================
@@ -734,6 +780,23 @@
         .recommendation-card.long-term {
             background: #eff6ff;
             border-color: var(--secondary-blue);
+        }
+        
+        .rec-full-width {
+            background: #f8f9fa;
+            border-left: 4px solid var(--secondary-blue);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .rec-full-width .rec-icon {
+            background: var(--secondary-blue);
+        }
+        
+        .rec-content {
+            color: var(--text-primary);
+            font-size: 0.95em;
         }
         
         .rec-header {
@@ -885,7 +948,7 @@
            ======================================== */
         @page {
             size: A4 landscape;
-            margin: 0;
+            margin: 15mm 18mm;
         }
         
         @media print {
@@ -894,8 +957,8 @@
             }
             .page {
                 page-break-after: always;
-                width: 297mm;  /* A4 landscape width */
-                height: 210mm; /* A4 landscape height */
+                width: auto;
+                height: auto;
             }
         }
         
@@ -923,11 +986,11 @@
         <h1 class="cover-title">Penetration Testing Report</h1>
         
         <div style="margin-top: 20px;">
-            <div class="cover-subtitle">{{ client_name or "Acme Corporation" }}</div>
-            <div class="cover-description">External & Internal Penetration Test</div>
+            <div class="cover-subtitle">{{ client_name or "NA" }}</div>
+            <div class="cover-description">{{ test_type or "Security Assessment" }}</div>
         </div>
         
-        <div class="cover-date">{{ report_date or now.strftime('%B %Y') if now else 'November 2025' }}</div>
+        <div class="cover-date">{{ report_date or (now.strftime('%B %Y') if now else 'NA') }}</div>
     </div>
     
     <!-- ========================================
@@ -944,7 +1007,7 @@
                     </div>
                     <div>
                         <div class="header-label">Client Organization</div>
-                        <div class="header-value">{{ client_name or "Acme Corporation" }}</div>
+                        <div class="header-value">{{ client_name or "NA" }}</div>
                     </div>
                 </div>
                 
@@ -959,7 +1022,7 @@
                     </div>
                     <div>
                         <div class="header-label">Assessment Period</div>
-                        <div class="header-value">{{ assessment_period or "November 1-15, 2025" }}</div>
+                        <div class="header-value">{{ assessment_period or "NA" }}</div>
                     </div>
                 </div>
             </div>
@@ -974,7 +1037,7 @@
                     </div>
                     <div>
                         <div class="header-label">Lead Consultant</div>
-                        <div class="header-value">{{ lead_consultant or "Sarah Mitchell, OSCP, CISSP" }}</div>
+                        <div class="header-value">{{ lead_consultant or "NA" }}</div>
                     </div>
                 </div>
                 
@@ -987,7 +1050,7 @@
                     </div>
                     <div>
                         <div class="header-label">Classification</div>
-                        <div class="header-value classification">Confidential and Proprietary</div>
+                        <div class="header-value classification">{{ classification or "Confidential and Proprietary" }}</div>
                     </div>
                 </div>
             </div>
@@ -995,19 +1058,13 @@
         
         <h2 class="section-title">Executive Summary</h2>
         
-        <p class="summary-text">
-            This report presents the findings of a comprehensive penetration test conducted against {{ client_name or "Acme Corporation" }}'s 
-            external and internal network infrastructure. The assessment was performed over a two-week period and identified several 
-            critical security vulnerabilities that require immediate attention.
+        {% if executive_summary %}
+        <div class="summary-text markdown-content" style="line-height: 1.8;">{{ executive_summary | markdown | safe }}</div>
+        {% else %}
+        <p class="summary-text" style="color: #7f8c8d; font-style: italic;">
+            Executive Summary: NA (No data available)
         </p>
-        
-        <p class="summary-text">
-            Our team successfully identified 
-            <span class="summary-highlight">{{ critical_count or 3 }} critical</span> and 
-            <span class="summary-highlight high">{{ high_count or 7 }} high-severity</span> vulnerabilities that could allow 
-            unauthorized access to sensitive systems and data. Exploitation of these vulnerabilities could result in complete system 
-            compromise, data exfiltration, and significant business disruption.
-        </p>
+        {% endif %}
         
         <div class="vuln-cards">
             <div class="vuln-card critical">
@@ -1018,7 +1075,7 @@
                         <line x1="12" y1="16" x2="12" y2="16"/>
                     </svg>
                 </div>
-                <div class="card-count">{{ critical_count or 3 }}</div>
+                <div class="card-count">{{ critical_count if critical_count is not none else "NA" }}</div>
                 <div class="card-label">Critical</div>
             </div>
             
@@ -1030,7 +1087,7 @@
                         <line x1="12" y1="17" x2="12" y2="17"/>
                     </svg>
                 </div>
-                <div class="card-count">{{ high_count or 7 }}</div>
+                <div class="card-count">{{ high_count if high_count is not none else "NA" }}</div>
                 <div class="card-label">High</div>
             </div>
             
@@ -1042,7 +1099,7 @@
                         <line x1="12" y1="8" x2="12" y2="8"/>
                     </svg>
                 </div>
-                <div class="card-count">{{ medium_count or 12 }}</div>
+                <div class="card-count">{{ medium_count if medium_count is not none else "NA" }}</div>
                 <div class="card-label">Medium</div>
             </div>
             
@@ -1054,7 +1111,7 @@
                         <line x1="12" y1="8" x2="12" y2="8"/>
                     </svg>
                 </div>
-                <div class="card-count">{{ low_count or 8 }}</div>
+                <div class="card-count">{{ low_count if low_count is not none else "NA" }}</div>
                 <div class="card-label">Low</div>
             </div>
             
@@ -1065,7 +1122,7 @@
                         <polyline points="22 4 12 14.01 9 11.01"/>
                     </svg>
                 </div>
-                <div class="card-count">{{ info_count or 5 }}</div>
+                <div class="card-count">{{ info_count if info_count is not none else "NA" }}</div>
                 <div class="card-label">Info</div>
             </div>
         </div>
@@ -1077,69 +1134,35 @@
          PAGE 3: CHARTS & VISUALIZATIONS
          ======================================== -->
     <div class="page content-page">
+        {% if severity_bar_chart or severity_pie_chart %}
         <div class="charts-grid">
             <div class="chart-container">
                 <h3 class="chart-title">Findings by Severity</h3>
-                <div class="bar-chart">
-                    <div class="bar">
-                        <div class="bar-column critical" style="height: {{ (critical_count or 3) * 8 }}%;"></div>
-                        <div class="bar-label">Critical</div>
-                    </div>
-                    <div class="bar">
-                        <div class="bar-column high" style="height: {{ (high_count or 7) * 5.8 }}%;"></div>
-                        <div class="bar-label">High</div>
-                    </div>
-                    <div class="bar">
-                        <div class="bar-column medium" style="height: {{ (medium_count or 12) * 3.75 }}%;"></div>
-                        <div class="bar-label">Medium</div>
-                    </div>
-                    <div class="bar">
-                        <div class="bar-column low" style="height: {{ (low_count or 8) * 4.5 }}%;"></div>
-                        <div class="bar-label">Low</div>
-                    </div>
-                    <div class="bar">
-                        <div class="bar-column info" style="height: {{ (info_count or 5) * 6 }}%;"></div>
-                        <div class="bar-label">Info</div>
-                    </div>
-                </div>
+                {% if severity_bar_chart %}
+                <img class="chart-image" src="{{ severity_bar_chart }}" alt="Findings by severity bar chart" />
+                {% else %}
+                <p style="color: #7f8c8d; font-style: italic; padding: 20px; text-align: center;">
+                    Findings by Severity: NA (No data available)
+                </p>
+                {% endif %}
             </div>
             
             <div class="chart-container">
                 <h3 class="chart-title">Distribution of Findings</h3>
-                <div class="pie-chart">
-                    <!-- SVG Pie Chart would go here - simplified for template -->
-                    <svg viewBox="0 0 200 200" style="width: 100%; height: 100%;">
-                        <circle cx="100" cy="100" r="80" fill="#dc2626" stroke="white" stroke-width="2"/>
-                        <path d="M 100 100 L 100 20 A 80 80 0 0 1 170 70 Z" fill="#ea580c" stroke="white" stroke-width="2"/>
-                        <path d="M 100 100 L 170 70 A 80 80 0 0 1 150 160 Z" fill="#ca8a04" stroke="white" stroke-width="2"/>
-                        <path d="M 100 100 L 150 160 A 80 80 0 0 1 50 160 Z" fill="#3b82f6" stroke="white" stroke-width="2"/>
-                        <path d="M 100 100 L 50 160 A 80 80 0 0 1 30 100 Z" fill="#6b7280" stroke="white" stroke-width="2"/>
-                    </svg>
+                {% if severity_pie_chart %}
+                <img class="chart-image" src="{{ severity_pie_chart }}" alt="Distribution of findings pie chart" />
+                {% else %}
+                <p style="color: #7f8c8d; font-style: italic; padding: 20px; text-align: center;">
+                    Distribution Chart: NA
+                </p>
+                {% endif %}
                 </div>
-                <div class="pie-legend">
-                    <div class="legend-item">
-                        <div class="legend-color critical"></div>
-                        <span>Critical 9%</span>
                     </div>
-                    <div class="legend-item">
-                        <div class="legend-color high"></div>
-                        <span>High 20%</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color medium"></div>
-                        <span>Medium 34%</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color low"></div>
-                        <span>Low 23%</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color info"></div>
-                        <span>Info 14%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {% else %}
+        <p style="color: #7f8c8d; font-style: italic; padding: 20px;">
+            Charts & Visualizations: NA (No severity data available)
+        </p>
+        {% endif %}
         
         <!-- Scope & Methodology -->
         <h2 class="section-title" style="margin-top: 60px;">Scope & Methodology</h2>
@@ -1147,42 +1170,48 @@
         <h3 style="font-size: 20px; margin: 30px 0 20px; font-weight: 600;">Assessment Scope</h3>
         
         <ul class="scope-list">
-            <li><span class="scope-label">External Network:</span> Public-facing IP ranges 203.0.113.0/24 and 198.51.100.0/24</li>
-            <li><span class="scope-label">Internal Network:</span> Corporate network segments 10.0.0.0/16</li>
-            <li><span class="scope-label">Web Applications:</span> Customer portal, employee dashboard, and API endpoints</li>
-            <li><span class="scope-label">Wireless Networks:</span> Corporate WiFi infrastructure</li>
+            {% if assessment_scope_items and assessment_scope_items|length > 0 %}
+                {% for scope_item in assessment_scope_items %}
+                <li><span class="scope-label">{{ scope_item.label or "Scope Item" }}:</span> {{ scope_item.value or "NA" }}</li>
+                {% endfor %}
+            {% else %}
+                <li><span class="scope-label">External Network:</span> NA</li>
+                <li><span class="scope-label">Internal Network:</span> NA</li>
+                <li><span class="scope-label">Web Applications:</span> NA</li>
+                <li><span class="scope-label">Wireless Networks:</span> NA</li>
+            {% endif %}
         </ul>
         
         <h3 style="font-size: 20px; margin: 40px 0 20px; font-weight: 600;">Testing Methodology</h3>
         
         <div class="methodology-grid">
-            <div class="method-card">
-                <div class="method-title">Reconnaissance</div>
-                <div class="method-description">
-                    OSINT gathering, subdomain enumeration, port scanning, and service fingerprinting to map the attack surface.
+            {% if testing_methodology and testing_methodology|length > 0 %}
+                {% for method in testing_methodology %}
+                <div class="method-card">
+                    <div class="method-title">{{ method.title or "NA" }}</div>
+                    <div class="method-description">
+                        {{ method.description or "NA" }}
+                    </div>
                 </div>
-            </div>
-            
-            <div class="method-card">
-                <div class="method-title">Vulnerability Analysis</div>
-                <div class="method-description">
-                    Automated and manual vulnerability scanning to identify security weaknesses and misconfigurations.
+                {% endfor %}
+            {% else %}
+                <div class="method-card">
+                    <div class="method-title">Reconnaissance</div>
+                    <div class="method-description">NA</div>
                 </div>
-            </div>
-            
-            <div class="method-card">
-                <div class="method-title">Exploitation</div>
-                <div class="method-description">
-                    Attempted exploitation of identified vulnerabilities to validate findings and assess real-world impact.
+                <div class="method-card">
+                    <div class="method-title">Vulnerability Analysis</div>
+                    <div class="method-description">NA</div>
                 </div>
-            </div>
-            
-            <div class="method-card">
-                <div class="method-title">Post-Exploitation</div>
-                <div class="method-description">
-                    Privilege escalation, lateral movement, and persistence testing to determine the extent of access.
+                <div class="method-card">
+                    <div class="method-title">Exploitation</div>
+                    <div class="method-description">NA</div>
                 </div>
-            </div>
+                <div class="method-card">
+                    <div class="method-title">Post-Exploitation</div>
+                    <div class="method-description">NA</div>
+                </div>
+            {% endif %}
         </div>
     </div>
     
@@ -1193,79 +1222,83 @@
         <h2 class="section-title">Risk Assessment Matrix</h2>
         
         <div class="risk-matrix">
-            <div class="matrix-grid">
-                <!-- Empty corner cell -->
-                <div class="matrix-label"></div>
-                
-                <!-- Column headers (Impact) -->
-                <div class="matrix-label">1</div>
-                <div class="matrix-label">2</div>
-                <div class="matrix-label">3</div>
-                <div class="matrix-label">4</div>
-                <div class="matrix-label">5</div>
-                
-                <!-- Row 5 (Likelihood = 5) -->
-                <div class="matrix-label">5</div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell risk-medium"></div>
-                <div class="matrix-cell risk-medium"></div>
-                <div class="matrix-cell risk-critical">Weak Passwords<br>S3 Exposure</div>
-                <div class="matrix-cell risk-critical">RCE (Struts)</div>
-                
-                <!-- Row 4 (Likelihood = 4) -->
-                <div class="matrix-label">4</div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell risk-medium"></div>
-                <div class="matrix-cell risk-high">Missing Headers<br>IDOR in API</div>
-                <div class="matrix-cell risk-critical">SQL Injection</div>
-                
-                <!-- Row 3 (Likelihood = 3) -->
-                <div class="matrix-label">3</div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell risk-medium">Unencrypted T...</div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                
-                <!-- Row 2 (Likelihood = 2) -->
-                <div class="matrix-label">2</div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell risk-medium"></div>
-                
-                <!-- Row 1 (Likelihood = 1) -->
-                <div class="matrix-label">1</div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-                <div class="matrix-cell"></div>
-            </div>
-            
-            <div style="text-align: center; margin-top: 20px; font-weight: 600; color: var(--text-light);">Impact</div>
-            <div style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%) rotate(-90deg); font-weight: 600; color: var(--text-light);">Likelihood</div>
-            
-            <div class="matrix-legend">
-                <div class="legend-badge">
-                    <div class="legend-box" style="background: #fecaca;"></div>
-                    <span>Critical Risk (20-25)</span>
+            {% if risk_matrix %}
+                {{ risk_matrix|safe }}
+            {% else %}
+                <!-- Default Risk Matrix with NA -->
+                <div class="matrix-grid">
+                    <!-- Top row labels (Impact: 1-5) -->
+                    <div class="matrix-label"></div>
+                    <div class="matrix-label">1</div>
+                    <div class="matrix-label">2</div>
+                    <div class="matrix-label">3</div>
+                    <div class="matrix-label">4</div>
+                    <div class="matrix-label">5</div>
+                    
+                    <!-- Row 5 (Likelihood 5) -->
+                    <div class="matrix-label">5</div>
+                    <div class="matrix-cell risk-medium"></div>
+                    <div class="matrix-cell risk-medium"></div>
+                    <div class="matrix-cell risk-high"></div>
+                    <div class="matrix-cell risk-critical"></div>
+                    <div class="matrix-cell risk-critical"></div>
+                    
+                    <!-- Row 4 (Likelihood 4) -->
+                    <div class="matrix-label">4</div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-medium"></div>
+                    <div class="matrix-cell risk-high"></div>
+                    <div class="matrix-cell risk-critical"></div>
+                    
+                    <!-- Row 3 (Likelihood 3) -->
+                    <div class="matrix-label">3</div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-medium"></div>
+                    <div class="matrix-cell risk-high"></div>
+                    <div class="matrix-cell risk-high"></div>
+                    
+                    <!-- Row 2 (Likelihood 2) -->
+                    <div class="matrix-label">2</div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-medium"></div>
+                    
+                    <!-- Row 1 (Likelihood 1) -->
+                    <div class="matrix-label">1</div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
+                    <div class="matrix-cell risk-low"></div>
                 </div>
-                <div class="legend-badge">
-                    <div class="legend-box" style="background: #fed7aa;"></div>
-                    <span>High Risk (15-19)</span>
+                
+                <div style="text-align: center; margin-top: 30px; color: #7f8c8d; font-style: italic;">
+                    <strong>Note:</strong> Risk items data not available - showing matrix template only
                 </div>
-                <div class="legend-badge">
-                    <div class="legend-box" style="background: #fde047;"></div>
-                    <span>Medium Risk (9-14)</span>
+                
+                <div class="matrix-legend" style="justify-content: center;">
+                    <div class="legend-badge">
+                        <div class="legend-box" style="background: #fecaca;"></div>
+                        <span>Critical Risk (20-25)</span>
+                    </div>
+                    <div class="legend-badge">
+                        <div class="legend-box" style="background: #fed7aa;"></div>
+                        <span>High Risk (15-19)</span>
+                    </div>
+                    <div class="legend-badge">
+                        <div class="legend-box" style="background: #fde047;"></div>
+                        <span>Medium Risk (9-14)</span>
+                    </div>
+                    <div class="legend-badge">
+                        <div class="legend-box" style="background: #dbeafe;"></div>
+                        <span>Low Risk (1-8)</span>
+                    </div>
                 </div>
-                <div class="legend-badge">
-                    <div class="legend-box" style="background: #dbeafe;"></div>
-                    <span>Low Risk (1-8)</span>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
     
@@ -1286,36 +1319,37 @@
                 <div style="text-align: right; padding-right: 80px;">Exploitation Likelihood</div>
             </div>
             
-            {% set attack_vectors = [
-                {"name": "SQL Injection", "score": 95, "class": "critical"},
-                {"name": "Credential Stuffing", "score": 92, "class": "critical"},
-                {"name": "Remote Code Execution", "score": 89, "class": "high"},
-                {"name": "Cross-Site Scripting (XSS)", "score": 85, "class": "high"},
-                {"name": "Authentication Bypass", "score": 78, "class": "high"},
-                {"name": "Privilege Escalation", "score": 74, "class": "high"},
-                {"name": "Server-Side Request Forgery", "score": 71, "class": "high"},
-                {"name": "Insecure Direct Object Reference", "score": 68, "class": "medium"},
-                {"name": "XML External Entity (XXE)", "score": 65, "class": "medium"},
-                {"name": "Security Misconfiguration", "score": 62, "class": "medium"},
-                {"name": "Command Injection", "score": 58, "class": "medium"},
-                {"name": "Path Traversal", "score": 55, "class": "medium"},
-                {"name": "Cross-Site Request Forgery", "score": 51, "class": "medium"},
-                {"name": "Clickjacking", "score": 47, "class": "low"},
-                {"name": "Session Hijacking", "score": 44, "class": "low"},
-                {"name": "Man-in-the-Middle", "score": 41, "class": "low"},
-                {"name": "DNS Spoofing", "score": 38, "class": "low"},
-                {"name": "Brute Force Attack", "score": 34, "class": "low"},
-                {"name": "Denial of Service", "score": 31, "class": "low"}
-            ] %}
-            
-            {% for vector in attack_vectors %}
-            <div class="table-row">
-                <div>{{ vector.name }}</div>
-                <div class="progress-bar">
-                    <div class="progress-fill {{ vector.class }}" style="width: {{ vector.score }}%;">{{ vector.score }}%</div>
+            {% if attack_vectors and attack_vectors|length > 0 %}
+                {% for vector in attack_vectors %}
+                <div class="table-row">
+                    <div>{{ vector.name or "Attack Vector" }}{% if not vector.score or not vector.class %} - NA{% endif %}</div>
+                    <div style="position: relative;">
+                        {% if vector.score and vector.class %}
+                        <div class="progress-bar">
+                            <div class="progress-fill {{ vector.class }}" style="width: {{ vector.score }}%;">
+                                <span style="position: absolute; right: 12px; color: white; font-weight: 700; font-size: 14px;">{{ vector.score }}%</span>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="progress-bar">
+                            <div style="text-align: center; color: #7f8c8d; font-style: italic; padding: 6px;">NA</div>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
-            {% endfor %}
+                {% endfor %}
+            {% else %}
+                {% for vector_name in ['SQL Injection', 'Credential Stuffing', 'Remote Code Execution', 'Cross-Site Scripting (XSS)', 'Authentication Bypass', 'Privilege Escalation', 'Server-Side Request Forgery', 'Insecure Direct Object Reference', 'XML External Entity (XXE)', 'Security Misconfiguration', 'Command Injection', 'Path Traversal', 'Cross-Site Request Forgery', 'Clickjacking', 'Session Hijacking', 'Man-in-the-Middle', 'DNS Spoofing', 'Brute Force Attack', 'Denial of Service', 'File Upload Vulnerability', 'HTTP Parameter Pollution', 'Cache Poisoning', 'Server-Side Template Injection', 'Subdomain Takeover', 'Race Condition', 'Time-Based Blind SQL'] %}
+                <div class="table-row">
+                    <div>{{ vector_name }} - NA</div>
+                    <div style="position: relative;">
+                        <div class="progress-bar">
+                            <div style="text-align: center; color: #7f8c8d; font-style: italic; padding: 6px;">NA</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
         </div>
         
         <h3 style="font-size: 20px; margin: 40px 0 20px; font-weight: 600;">Security Concerns</h3>
@@ -1326,21 +1360,21 @@
                 <div style="text-align: center;">Prevalence</div>
             </div>
             
-            {% set concerns = [
-                {"name": "Unpatched Critical Vulnerabilities", "score": "85%"},
-                {"name": "Weak Authentication Mechanisms", "score": "72%"},
-                {"name": "Missing Security Headers", "score": "68%"},
-                {"name": "Open Unnecessary Ports", "score": "91%"},
-                {"name": "Outdated Software Versions", "score": "78%"},
-                {"name": "Insufficient Access Controls", "score": "64%"}
-            ] %}
-            
-            {% for concern in concerns %}
-            <div class="table-row">
-                <div>{{ concern.name }}</div>
-                <div style="text-align: center; font-weight: 600;">{{ concern.score }}</div>
-            </div>
-            {% endfor %}
+            {% if security_concerns and security_concerns|length > 0 %}
+                {% for concern in security_concerns %}
+                <div class="table-row">
+                    <div>{{ concern.name or "Security Concern" }}{% if not concern.score %} - NA{% endif %}</div>
+                    <div style="text-align: center; font-weight: 600;">{{ concern.score or "NA" }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for concern_name in ['Unpatched Critical Vulnerabilities', 'Weak Authentication Mechanisms', 'Missing Security Headers', 'Open Unnecessary Ports', 'Outdated Software Versions', 'Insufficient Access Controls'] %}
+                <div class="table-row">
+                    <div>{{ concern_name }} - NA</div>
+                    <div style="text-align: center; font-weight: 600;">NA</div>
+                </div>
+                {% endfor %}
+            {% endif %}
         </div>
     </div>
     
@@ -1352,37 +1386,91 @@
         
         {% for finding in findings %}
         <div class="finding-card">
-            <div class="finding-header">{{ finding.title or finding.category }}</div>
+            <div class="finding-header">
+                {{ finding.cve_id or finding.title or "NA" }} 
+                {% if finding.severity %}
+                <span style="float: right; background: {% if finding.severity == 'Critical' %}#c0392b{% elif finding.severity == 'High' %}#d35400{% elif finding.severity == 'Medium' %}#f39c12{% else %}#95a5a6{% endif %}; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.85em;">
+                    {{ finding.severity }}
+                </span>
+                {% else %}
+                <span style="float: right; background: #95a5a6; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.85em;">NA</span>
+                {% endif %}
+            </div>
             
-            <div class="finding-content">
-                {{ finding.description or finding.summary }}
+            <div class="finding-content markdown-content">
+                <strong>Description:</strong> {{ (finding.description or "NA") | markdown | safe }}
             </div>
             
             <div class="dysfunction-badge">
-                [ {{ finding.exploitability_score or "94" }}% ] - Dysfunction Highly Likely. Much improvement required.
+                [ {% if finding.severity == 'Critical' %}95{% elif finding.severity == 'High' %}85{% elif finding.severity == 'Medium' %}65{% else %}40{% endif %}% ] - 
+                {% if finding.severity == 'Critical' %}Critical Risk - Immediate Action Required{% elif finding.severity == 'High' %}High Risk - Urgent Remediation Needed{% elif finding.severity == 'Medium' %}Medium Risk - Timely Remediation Recommended{% else %}Low Risk - Remediation Should Be Scheduled{% endif %}
             </div>
             
+            {% if finding.impact %}
             <div class="finding-subsection">
-                <div class="subsection-title">Rationale:</div>
-                <div class="subsection-content">{{ finding.rationale or finding.technical_details }}</div>
+                <div class="subsection-title">Impact Assessment:</div>
+                <div class="subsection-content markdown-content">{{ finding.impact | markdown | safe }}</div>
             </div>
+            {% endif %}
             
+            {% if finding.recommendation %}
             <div class="finding-subsection">
-                <div class="subsection-title">Elements Considered:</div>
-                <div class="subsection-content">{{ finding.elements or "Port Scan Results, Service Banners, Kernel Version Analysis, Network Topology Mapping, Access Control Lists, Firewall Rules" }}</div>
+                <div class="subsection-title">Remediation Steps:</div>
+                <div class="subsection-content">
+                    {% if finding.recommendation is mapping %}
+                        {# AI-generated structured remediation #}
+                        {% if finding.recommendation.priority %}
+                        <p>
+                            <strong>Priority:</strong>
+                            <span style="color: {% if 'Immediate' in finding.recommendation.priority %}#c0392b{% elif 'Short' in finding.recommendation.priority %}#d35400{% else %}#f39c12{% endif %}; font-weight: bold;">
+                                {{ finding.recommendation.priority | markdown_inline | safe }}
+                            </span>
+                        </p>
+                        {% endif %}
+                        {% if finding.recommendation.steps %}
+                        <p><strong>Action Steps:</strong></p>
+                        <ol style="margin-left: 20px;">
+                            {% for step in finding.recommendation.steps %}
+                            <li style="margin-bottom: 8px;">
+                                {{ step | markdown_inline | safe }}
+                            </li>
+                            {% endfor %}
+                        </ol>
+                        {% endif %}
+                    {% else %}
+                        {# Simple string remediation #}
+                        <div class="markdown-content">
+                            {{ finding.recommendation | markdown | safe }}
+                        </div>
+                    {% endif %}
             </div>
+            </div>
+            {% endif %}
             
-            {% if finding.recommendations %}
+            {% if finding.references %}
             <div class="finding-subsection">
-                <div class="subsection-title">Patient Result Not Available - Consider Running In Future Tests:</div>
-                <div class="subsection-content">{{ finding.future_tests or "Intrusion Prevention System Configuration, Network Access Control Implementation, SSH Key Management Audit" }}</div>
+                <div class="subsection-title">References:</div>
+                <div class="subsection-content">
+                    {% for ref in finding.references %}
+                    <span style="margin-right: 10px; color: #2980b9;">
+                        {{ ref | markdown_inline | safe }}
+                    </span>
+                    {% endfor %}
+                </div>
             </div>
             {% endif %}
         </div>
         {% endfor %}
         
-        <!-- Sample findings if none provided -->
+        <!-- No findings available -->
         {% if not findings %}
+        <p style="color: #7f8c8d; font-style: italic; padding: 20px;">
+            No findings data available (NA)
+        </p>
+        {% endif %}
+        
+        <!-- Legacy fallback (should not be displayed) -->
+        {% if false %}
         <div class="finding-card">
             <div class="finding-header">Network Infrastructure Vulnerabilities</div>
             
@@ -1496,60 +1584,24 @@
         <h2 class="section-title">Strategic Recommendations</h2>
         
         <div class="recommendations-section">
-            <div class="recommendation-card immediate">
+            {% if recommendations %}
+                <div class="rec-full-width">
                 <div class="rec-header">
                     <div class="rec-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
                             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                         </svg>
                     </div>
-                    <div class="rec-title">Immediate Action Required (0-7 Days)</div>
+                        <div class="rec-title">AI-Generated Strategic Recommendations</div>
                 </div>
-                <ul class="rec-list">
-                    <li>Patch Apache Struts vulnerability and remove public S3 bucket access</li>
-                    <li>Deploy emergency WAF rules to block SQL injection attempts</li>
-                    <li>Force password reset for all accounts using compromised credentials</li>
-                    <li>Rotate all API keys and secrets exposed in S3 bucket</li>
-                </ul>
+                    <div class="rec-content markdown-content" style="padding: 20px; line-height: 1.8;">{{ recommendations | markdown | safe }}</div>
             </div>
-            
-            <div class="recommendation-card short-term">
-                <div class="rec-header">
-                    <div class="rec-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="16" x2="12" y2="12"/>
-                            <line x1="12" y1="8" x2="12" y2="8"/>
-                        </svg>
-                    </div>
-                    <div class="rec-title">Short-Term Remediation (1-4 Weeks)</div>
-                </div>
-                <ul class="rec-list">
-                    <li>Implement MFA across all user accounts and administrative interfaces</li>
-                    <li>Deploy comprehensive security headers on all web applications</li>
-                    <li>Fix authorization issues in customer API with proper access controls</li>
-                    <li>Conduct emergency security awareness training for development teams</li>
-                </ul>
-            </div>
-            
-            <div class="recommendation-card long-term">
-                <div class="rec-header">
-                    <div class="rec-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                            <polyline points="22 4 12 14.01 9 11.01"/>
-                        </svg>
-                    </div>
-                    <div class="rec-title">Long-Term Strategic Initiatives (1-6 Months)</div>
-                </div>
-                <ul class="rec-list">
-                    <li>Establish secure software development lifecycle (SSDLC) with security gates</li>
-                    <li>Implement automated security testing in CI/CD pipeline</li>
-                    <li>Deploy SIEM solution with 24/7 monitoring and alerting</li>
-                    <li>Conduct quarterly penetration tests and annual red team assessments</li>
-                    <li>Implement zero-trust network architecture with micro-segmentation</li>
-                </ul>
-            </div>
+            {% else %}
+                {# No AI recommendations available #}
+                <p style="color: #7f8c8d; font-style: italic; padding: 20px;">
+                    Strategic Recommendations: NA (No data available)
+                </p>
+            {% endif %}
         </div>
     </div>
     
@@ -1560,17 +1612,13 @@
         <h2 class="section-title">Conclusion</h2>
         
         <div class="conclusion-section">
-            <p class="conclusion-text">
-                The penetration test revealed significant security vulnerabilities across {{ client_name or "Acme Corporation" }}'s 
-                infrastructure that pose immediate and substantial risk to the organization. The presence of critical vulnerabilities 
-                such as SQL injection, unpatched remote code execution flaws, and exposed sensitive data requires urgent remediation.
+            {% if conclusion %}
+            <div class="markdown-content" style="line-height: 1.8;">{{ conclusion | markdown | safe }}</div>
+            {% else %}
+            <p class="conclusion-text" style="color: #7f8c8d; font-style: italic;">
+                Conclusion: NA (No data available)
             </p>
-            
-            <p class="conclusion-text">
-                While these findings are concerning, they represent an opportunity to significantly strengthen the organization's 
-                security posture. With focused effort on the immediate action items and commitment to the strategic recommendations, 
-                {{ client_name or "Acme Corporation" }} can establish robust security controls that protect against modern cyber threats.
-            </p>
+            {% endif %}
             
             <p class="conclusion-text">
                 We recommend conducting a follow-up assessment within 90 days to verify remediation of critical and high-severity 
@@ -1645,11 +1693,10 @@
         
         <div class="footer">
             <p><strong>End of Report</strong></p>
-            <p>For questions or clarifications, contact <span class="footer-highlight">{{ lead_consultant or "Sarah Mitchell, OSCP, CISSP" }}</span></p>
-            <p style="margin-top: 20px;">© {{ now.year }} Cybersecurity Assessment Services | All Rights Reserved</p>
+            <p>For questions or clarifications, contact <span class="footer-highlight">{{ lead_consultant or "NA" }}</span></p>
+            <p style="margin-top: 20px;">© {{ now.year if now else 'NA' }} Cybersecurity Assessment Services | All Rights Reserved</p>
         </div>
     </div>
     
 </body>
 </html>
-

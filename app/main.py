@@ -1,9 +1,17 @@
+import logging
 from fastapi import FastAPI
 from pathlib import Path
 from dotenv import load_dotenv
 
 from app.api.routes import ingestion, reports
 
+
+# Configure logging BEFORE creating the app
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s',
+    handlers=[logging.StreamHandler()]
+)
 
 env_path = Path(__file__).parent.parent / ".env"
 if env_path.exists():

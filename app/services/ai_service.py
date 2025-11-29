@@ -2,13 +2,22 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from functools import lru_cache
 import logging
 logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 import google.generativeai as genai
+
+# Import LangGraph multi-agent system
+try:
+    from app.services.pentest_multi_agent_service import PentestReportOrchestrator
+    AGENT_AVAILABLE = True
+    logger.info("LangGraph multi-agent system available")
+except ImportError as e:
+    AGENT_AVAILABLE = False
+    logger.warning(f"LangGraph multi-agent system not available: {e}")
 
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -92,47 +101,33 @@ def _handle_gemini_error(error: Exception) -> None:
         logger.exception("Unhandled Gemini error")
 
 
-def generate_full_report_with_gemini(parsed_scan: Dict) -> Dict:
+def generate_full_report_with_gemini(parsed_scan: Dict, use_agent: bool = True) -> Dict:
     """
     Generate comprehensive security report using Gemini AI.
     
     Args:
         parsed_scan: Parsed scan data dictionary with host info and findings
+        use_agent: If True, uses LangGraph multi-agent system (default). If False, uses direct Gemini API.
         
     Returns:
         Dictionary containing generated report with executive_summary, findings, etc.
     """
-    try:
-        model_name = settings.gemini_model
-        if not model_name:
-            raise RuntimeError("gemini_model not configured in settings")
-        model = genai.GenerativeModel(model_name)
-        
-        # Build and send prompt
-        prompt = _build_prompt(parsed_scan)
-        logger.info(f"Calling Gemini API ({model_name}) with {len(prompt)} chars...")
-        
-        resp = model.generate_content(prompt)
-        text = (resp.text or "").strip()
-        
-        logger.info(f"Gemini response length: {len(text)} chars")
-        
-        if not text:
-            return _generate_stub_report(parsed_scan)
-        
-        # Extract JSON from response
-        report_data = _extract_json_from_response(text)
-        
-        if report_data:
-            logger.info("SUCCESS: Parsed JSON from Gemini response")
+    # Use LangGraph multi-agent system if available and requested
+    if use_agent and AGENT_AVAILABLE:
+        try:
+            logger.info("🎯 Using LangGraph multi-agent system for report generation")
+            orchestrator = PentestReportOrchestrator()
+            report_data = orchestrator.generate_report(parsed_scan)
+            logger.info("✅ Multi-agent report generation successful")
             return report_data
-        else:
-            # Fallback: parse text response into structured format
-            return _parse_text_response(text, parsed_scan)
-            
-    except Exception as e:
-        _handle_gemini_error(e)
-        return _generate_stub_report(parsed_scan)
+        except Exception as e:
+            logger.error(f"❌ Multi-agent generation failed: {e}", exc_info=True)
+            logger.info("⚠️  Falling back to stub report...")
+            return _generate_stub_report(parsed_scan)
+    
+    # If agent not available or not requested, use stub report
+    logger.warning("Multi-agent system not available, using stub report")
+    return _generate_stub_report(parsed_scan)
 
 
 def _parse_text_response(text: str, parsed_scan: Dict) -> Dict:
@@ -145,8 +140,29 @@ def _parse_text_response(text: str, parsed_scan: Dict) -> Dict:
         "findings": [],
         "recommendations": "Review the generated content and apply patches.",
         "risk_score": 7.0,
-        "risk_level": "High"
+        "risk_level": "High",
+        "severity_breakdown": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
     }
+
+
+def _calculate_severity_breakdown_ai(findings: List[Dict]) -> Dict:
+    """Calculate severity breakdown from findings list."""
+    breakdown = {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+    }
+    
+    for finding in findings:
+        severity = finding.get("severity", "").lower()
+        if severity in breakdown:
+            breakdown[severity] += 1
+        elif severity == "informational":
+            breakdown["info"] += 1
+    
+    return breakdown
 
 
 def _generate_stub_report(parsed_scan: Dict) -> Dict:
@@ -207,5 +223,6 @@ def _generate_stub_report(parsed_scan: Dict) -> Dict:
             "and implement security best practices."
         ),
         "risk_score": risk_score,
-        "risk_level": risk_level
+        "risk_level": risk_level,
+        "severity_breakdown": _calculate_severity_breakdown_ai(stub_findings)
     }

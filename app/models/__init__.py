@@ -5,7 +5,7 @@ from .base import Base
 from .client import Clients     
 from .host import Hosts  
 from .scan_file import ScanFiles  
-from .report import Reports  
+from .report import Reports, ReportType
 from .risk_score import RiskScores  
 from .threat_graph import ThreatGraphEdges
 from .vulnerability import Vulnerabilities 
